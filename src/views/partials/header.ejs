@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>CosmoConvert — Медиа-студия</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <a href="/home" class="brand">
+      <div class="brand-mark">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="4"/>
+          <ellipse cx="12" cy="12" rx="10" ry="4.5" transform="rotate(-30 12 12)"/>
+        </svg>
+      </div>
+      <div>Cosmo<span>Convert</span></div>
+    </a>
+
+    <nav class="nav-tabs">
+      <a href="/convert" class="nav-link <%= activePage === 'convert' ? 'active' : '' %>">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Конвертация
+      </a>
+      <a href="/resize" class="nav-link <%= activePage === 'resize' ? 'active' : '' %>">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        Ресайз
+      </a>
+      <a href="/upscale" class="nav-link <%= activePage === 'upscale' ? 'active' : '' %>">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/></svg>
+        Апскейл
+      </a>
+      <a href="/exif" class="nav-link <%= activePage === 'exif' ? 'active' : '' %>">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Метаданные
+      </a>
+    </nav>
+
+    <div class="account-area">
+      <% if (user) { %>
+        <div class="credits-pill">Кредиты: <b id="headerCredits"><%= user.credits %>/<%= dailyLimit %></b></div>
+        <a href="/profile" class="btn-top outline <%= activePage === 'profile' ? 'active' : '' %>"><%= user.email %></a>
+        <form action="/logout" method="POST" style="display:inline;">
+          <button type="submit" class="btn-top outline">Выйти</button>
+        </form>
+      <% } else { %>
+        <div class="guest-limit-wrap">
+          <div class="credits-pill" title="Пробные действия без регистрации">Гость: <b id="headerCredits"><%= guestRemaining %>/<%= guestLimit %></b></div>
+          <button type="button" class="limit-edit-btn" onclick="openGuestLimitModal()">Изменить лимит</button>
+        </div>
+        <a href="/login" class="btn-top outline">Войти</a>
+        <a href="/register" class="btn-top">Регистрация</a>
+      <% } %>
+    </div>
+  </header>
+
+  <% if (!user) { %>
+    <div class="custom-modal-backdrop hidden" id="guestLimitModal" onclick="if(event.target === this) closeGuestLimitModal()">
+      <div class="custom-modal">
+        <div class="custom-modal-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
+            <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
+            <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
+          </svg>
+        </div>
+        <h3>Настройка лимита гостя</h3>
+        <p>Выберите действие для быстрой проверки работы гостевых попыток и окна ограничения:</p>
+        <div class="limit-choice-group">
+          <button type="button" class="limit-choice-btn reset" onclick="changeGuestLimit('reset')">
+            <span class="choice-title">Сброс лимита (4/4)</span>
+            <span class="choice-desc">Восстановить все пробные попытки</span>
+          </button>
+          <button type="button" class="limit-choice-btn zero" onclick="changeGuestLimit('zero')">
+            <span class="choice-title">Обнуление лимита (0/4)</span>
+            <span class="choice-desc">Исчерпать попытки для теста предупреждения</span>
+          </button>
+        </div>
+        <button type="button" class="modal-cancel-btn" onclick="closeGuestLimitModal()">Отмена</button>
+      </div>
+    </div>
+
+    <script>
+      function openGuestLimitModal() {
+        document.getElementById('guestLimitModal').classList.remove('hidden');
+      }
+      function closeGuestLimitModal() {
+        document.getElementById('guestLimitModal').classList.add('hidden');
+      }
+      async function changeGuestLimit(action) {
+        const res = await fetch('/api/guest-limit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const creditsEl = document.getElementById('headerCredits');
+          if (creditsEl) creditsEl.textContent = data.display;
+          closeGuestLimitModal();
+        }
+      }
+    </script>
+  <% } %>
+
+  <main>

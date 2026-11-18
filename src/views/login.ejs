@@ -1,0 +1,22 @@
+<%- include('partials/header') %>
+
+<div class="auth-page-wrap">
+  <div class="auth-card">
+    <h2>Вход в аккаунт</h2>
+
+    <% if (error) { %>
+      <div class="error-msg"><%= error %></div>
+    <% } %>
+
+    <form action="/login" method="POST">
+      <input type="email" name="email" placeholder="Электронная почта" required>
+      <input type="password" name="password" placeholder="Пароль" required>
+      <button type="submit" class="auth-submit-btn">Войти</button>
+      <div class="auth-switch-box">
+        Нет аккаунта? <a href="/register" class="auth-inline-link">Зарегистрироваться</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

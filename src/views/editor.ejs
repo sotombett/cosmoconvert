@@ -1,0 +1,782 @@
+<%- include('partials/header') %>
+
+<div class="page-title">
+  <h1><%= tool.title %></h1>
+  <p><%- tool.desc %></p>
+</div>
+
+<form id="processForm" class="editor-workspace">
+  <input type="hidden" name="category" value="<%= tool.key %>">
+  <input type="hidden" name="cropX" id="field-cropX" value="0">
+  <input type="hidden" name="cropY" id="field-cropY" value="0">
+  <input type="hidden" name="cropW" id="field-cropW" value="0">
+  <input type="hidden" name="cropH" id="field-cropH" value="0">
+
+  <!-- ЛЕВАЯ КОЛОНКА: ИНФО О ФАЙЛЕ И ПРЕДПРОСМОТР -->
+  <div class="viewport-column">
+    <div class="file-info-bar">
+      <div class="file-meta">
+        <div class="file-meta-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+        </div>
+        <div>
+          <div class="file-meta-name" id="fileNameDisplay">Файл не выбран</div>
+          <div class="file-meta-dims" id="fileDimsDisplay">Загрузите изображение для начала работы</div>
+        </div>
+      </div>
+      <button type="button" class="icon-trash-btn" onclick="resetImage()" title="Сбросить изображение">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>
+
+    <div class="view-mode-bar">
+      <div class="section-tag">Предпросмотр</div>
+      <div class="view-mode-btns">
+        <button type="button" class="mini-mode-btn" id="gridToggleBtn" onclick="toggleGrid()">Сетка кадра</button>
+      </div>
+    </div>
+
+    <div class="canvas-stage">
+      <label class="dropzone-overlay" id="dropzone">
+        <input type="file" id="fileInput" name="image" accept="image/*" required>
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="1.8" style="margin-bottom:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div style="font-weight:700; font-size:16px; margin-bottom:6px;">Перетащите изображение сюда или <span style="color:#d946ef; text-decoration:underline;">выберите с диска</span></div>
+        <div style="font-size:12px; color:var(--text-muted);">Поддерживаются PNG, JPEG, WebP и AVIF до 40 МБ</div>
+      </label>
+
+      <div class="preview-container hidden" id="previewContainer">
+        <img id="previewImage" src="" alt="Предпросмотр" draggable="false">
+        <div class="crop-frame <%= tool.key === 'resize' ? 'interactive' : '' %>" id="cropFrame">
+          <div class="crop-grid-overlay hidden" id="cropGrid"></div>
+          <% if (tool.key === 'resize') { %>
+            <div class="crop-size-badge" id="cropSizeBadge">1920 × 1080</div>
+            <div class="crop-handle nw" data-dir="nw"></div>
+            <div class="crop-handle ne" data-dir="ne"></div>
+            <div class="crop-handle sw" data-dir="sw"></div>
+            <div class="crop-handle se" data-dir="se"></div>
+            <div class="crop-handle n" data-dir="n"></div>
+            <div class="crop-handle s" data-dir="s"></div>
+            <div class="crop-handle w" data-dir="w"></div>
+            <div class="crop-handle e" data-dir="e"></div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ПРАВАЯ КОЛОНКА: ИНДИВИДУАЛЬНЫЕ ПАРАМЕТРЫ ВКЛАДКИ -->
+  <div class="inspector-column">
+    <div class="advanced-toggle-box" id="costBox" data-base-cost="<%= tool.cost %>">
+      <div>
+        <div id="costTitle">Стоимость операции</div>
+        <div id="costSubNote" class="cost-subnote hidden">+1 кр. за удаление метаданных EXIF</div>
+      </div>
+      <span id="costValueDisplay"><%= tool.cost %> кр.</span>
+    </div>
+
+    <% if (tool.key === 'convert') { %>
+      <div class="section-tag">Параметры конвертации</div>
+      <input type="hidden" name="format" id="field-format" value="webp">
+      <input type="hidden" name="quality" id="field-quality" value="90">
+
+      <div class="control-group">
+        <div class="control-header"><span>Целевой формат файла</span></div>
+        <div class="btn-matrix-2">
+          <button type="button" class="matrix-btn active" onclick="setField('format', 'webp', this)">WebP</button>
+          <button type="button" class="matrix-btn" onclick="setField('format', 'png', this)">PNG</button>
+          <button type="button" class="matrix-btn" onclick="setField('format', 'jpeg', this)">JPEG</button>
+          <button type="button" class="matrix-btn" onclick="setField('format', 'avif', this)">AVIF</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="control-header"><span>Качество и степень сжатия</span></div>
+        <div class="btn-matrix-3">
+          <button type="button" class="matrix-btn" onclick="setField('quality', '100', this)">100% Макс.</button>
+          <button type="button" class="matrix-btn active" onclick="setField('quality', '90', this)">90% Оптим.</button>
+          <button type="button" class="matrix-btn" onclick="setField('quality', '75', this)">75% Сжатие</button>
+        </div>
+      </div>
+
+    <% } else if (tool.key === 'resize') { %>
+      <div class="section-tag">Параметры геометрии</div>
+      <input type="hidden" name="flipH" id="field-flipH" value="false">
+      <input type="hidden" name="flipV" id="field-flipV" value="false">
+
+      <div class="control-group" id="ratioGroup">
+        <div class="control-header"><span>Соотношение сторон (Пресеты)</span></div>
+        <div class="btn-matrix-5">
+          <button type="button" class="matrix-btn compact active" onclick="applyRatio(null, null, this)">Ориг.</button>
+          <button type="button" class="matrix-btn compact" id="customRatioBtn" onclick="applyRatio('custom', null, this)">Свой</button>
+          <button type="button" class="matrix-btn compact" onclick="applyRatio(1, 1, this)">1:1</button>
+          <button type="button" class="matrix-btn compact" onclick="applyRatio(9, 16, this)">9:16</button>
+          <button type="button" class="matrix-btn compact" onclick="applyRatio(16, 9, this)">16:9</button>
+
+          <button type="button" class="matrix-btn compact" onclick="applyRatio(4, 5, this)">4:5</button>
+          <button type="button" class="matrix-btn compact" onclick="applyRatio(5, 4, this)">5:4</button>
+          <button type="button" class="matrix-btn compact" onclick="applyRatio(3, 4, this)">3:4</button>
+          <button type="button" class="matrix-btn compact" onclick="applyRatio(4, 3, this)">4:3</button>
+          <button type="button" class="matrix-btn compact" onclick="applyRatio(2, 3, this)">2:3</button>
+
+          <button type="button" class="matrix-btn compact" onclick="applyRatio(3, 2, this)">3:2</button>
+          <button type="button" class="matrix-btn compact" onclick="applyRatio(5, 7, this)">5:7</button>
+          <button type="button" class="matrix-btn compact" onclick="applyRatio(7, 5, this)">7:5</button>
+          <button type="button" class="matrix-btn compact" onclick="applyRatio(1, 2, this)">1:2</button>
+          <button type="button" class="matrix-btn compact" onclick="applyRatio(2, 1, this)">2:1</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="control-header">
+          <span>Отражение (можно выбрать оба)</span>
+        </div>
+        <div class="btn-matrix-3">
+          <button type="button" class="matrix-btn active" id="symNoneBtn" onclick="toggleSymmetry('none')">Нет</button>
+          <button type="button" class="matrix-btn" id="symHBtn" onclick="toggleSymmetry('h')">Горизонт.</button>
+          <button type="button" class="matrix-btn" id="symVBtn" onclick="toggleSymmetry('v')">Вертикал.</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="control-header">
+          <span>Целевой размер (PX)</span>
+          <label class="switch-wrap">
+            <input type="checkbox" id="lockRatioCheck" checked>
+            <span class="switch-track"></span>
+            <span>Пропорции</span>
+          </label>
+        </div>
+        <div class="size-inputs-grid">
+          <div class="input-box">
+            <label>Ширина</label>
+            <input type="number" name="width" id="widthInput" value="1920" min="16" max="12000" required>
+          </div>
+          <div class="input-box">
+            <label>Высота</label>
+            <input type="number" name="height" id="heightInput" value="1080" min="16" max="12000" required>
+          </div>
+        </div>
+      </div>
+
+    <% } else if (tool.key === 'upscale') { %>
+      <div class="section-tag">Параметры увеличения</div>
+      <input type="hidden" name="scaleFactor" id="field-scaleFactor" value="2">
+      <input type="hidden" name="upscaleMode" id="field-upscaleMode" value="lanczos">
+      <input type="hidden" name="sharpness" id="field-sharpness" value="normal">
+
+      <div class="control-group">
+        <div class="control-header"><span>Кратность увеличения</span></div>
+        <div class="btn-matrix-2">
+          <button type="button" class="matrix-btn active" onclick="setUpscaleOption('scaleFactor', '2', this)">2x Увеличение</button>
+          <button type="button" class="matrix-btn" onclick="setUpscaleOption('scaleFactor', '4', this)">4x Ультра</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="control-header"><span>Математическое ядро</span></div>
+        <div class="btn-matrix-3">
+          <button type="button" class="matrix-btn active" onclick="setUpscaleOption('upscaleMode', 'lanczos', this)">Lanczos3 HQ</button>
+          <button type="button" class="matrix-btn" onclick="setUpscaleOption('upscaleMode', 'mitchell', this)">Mitchell Арт</button>
+          <button type="button" class="matrix-btn" onclick="setUpscaleOption('upscaleMode', 'nearest', this)">Pixel Art</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="control-header"><span>Контурная резкость и детализация</span></div>
+        <div class="btn-matrix-2">
+          <button type="button" class="matrix-btn active" onclick="setUpscaleOption('sharpness', 'normal', this)">Стандартная</button>
+          <button type="button" class="matrix-btn" onclick="setUpscaleOption('sharpness', 'high', this)">Усиленная + Контраст</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="control-header"><span>Расчет выходного разрешения</span></div>
+        <div class="upscale-info-box" id="upscaleInfoBox">
+          Загрузите изображение слева, чтобы увидеть новое разрешение и режим реконструкции контуров.
+        </div>
+      </div>
+
+    <% } else if (tool.key === 'exif') { %>
+      <div class="section-tag">Управление EXIF и GPS</div>
+      <input type="hidden" name="exifMode" id="field-exifMode" value="all">
+
+      <div class="control-group">
+        <div class="control-header"><span>Режим очистки</span></div>
+        <div class="btn-matrix-2" style="grid-template-columns: 1fr;">
+          <button type="button" class="matrix-btn active" onclick="setField('exifMode', 'all', this)">Стереть все EXIF, GPS и данные камеры</button>
+          <button type="button" class="matrix-btn" onclick="setField('exifMode', 'keep_icm', this)">Удалить EXIF, но оставить цветовой профиль</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="control-header"><span>Обнаруженные свойства файла</span></div>
+        <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:6px; padding:12px; font-size:12px; color:var(--text-muted); line-height:1.7;" id="exifSummaryBox">
+          Выберите файл слева, чтобы увидеть его тип, вес и параметры перед очисткой.
+        </div>
+      </div>
+    <% } %>
+
+    <% if (tool.key !== 'exif') { %>
+      <% if (user) { %>
+        <div class="bottom-feature-box">
+          <span class="locked-label">Стереть метаданные EXIF (+1 кр.)</span>
+          <label class="switch-wrap">
+            <input type="checkbox" id="stripExifCheck" onchange="updateOperationCost()">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+      <% } else { %>
+        <div class="bottom-feature-box locked" title="Зарегистрируйтесь, чтобы удалять метаданные при обработке">
+          <span class="locked-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Стереть метаданные EXIF
+          </span>
+          <a href="/register" class="locked-badge">Только с аккаунтом</a>
+        </div>
+      <% } %>
+    <% } %>
+
+    <% if (!user && (tool.key === 'upscale' || tool.key === 'exif')) { %>
+      <a href="/register" class="generate-btn disabled-lock">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Доступно после регистрации
+      </a>
+    <% } else { %>
+      <button type="submit" class="generate-btn" id="submitActionBtn">Обработать и скачать файл</button>
+    <% } %>
+  </div>
+</form>
+
+<!-- ПЛАШКА СТАТУСА ОБРАБОТКИ И СКАЧИВАНИЯ ПОД ОКНОМ -->
+<div id="downloadStatusBanner" class="download-status-banner hidden">
+  <div class="status-spinner" id="statusSpinner"></div>
+  <svg id="statusCheckIcon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="downloadStatusText">Обработка файла...</span>
+</div>
+
+<script>
+  const IS_RESIZE_TAB = '<%= tool.key %>' === 'resize';
+  const IS_UPSCALE_TAB = '<%= tool.key %>' === 'upscale';
+  const fileInput = document.getElementById('fileInput');
+  const dropzone = document.getElementById('dropzone');
+  const previewContainer = document.getElementById('previewContainer');
+  const previewImage = document.getElementById('previewImage');
+  const cropFrame = document.getElementById('cropFrame');
+  const cropSizeBadge = document.getElementById('cropSizeBadge');
+  const fileNameDisplay = document.getElementById('fileNameDisplay');
+  const fileDimsDisplay = document.getElementById('fileDimsDisplay');
+  const widthInput = document.getElementById('widthInput');
+  const heightInput = document.getElementById('heightInput');
+  const lockRatioCheck = document.getElementById('lockRatioCheck');
+  const cropGrid = document.getElementById('cropGrid');
+  const gridToggleBtn = document.getElementById('gridToggleBtn');
+  const exifSummaryBox = document.getElementById('exifSummaryBox');
+  const upscaleInfoBox = document.getElementById('upscaleInfoBox');
+
+  const fieldCropX = document.getElementById('field-cropX');
+  const fieldCropY = document.getElementById('field-cropY');
+  const fieldCropW = document.getElementById('field-cropW');
+  const fieldCropH = document.getElementById('field-cropH');
+
+  let naturalW = 1920;
+  let naturalH = 1080;
+  let hasLoadedFile = false;
+
+  // Текущие координаты рамки на экране (в пикселях отображаемой картинки)
+  let boxL = 0, boxT = 0, boxW = 0, boxH = 0;
+
+  // Состояние отражения (можно включить оба одновременно)
+  let isFlipH = false;
+  let isFlipV = false;
+
+  function updateOperationCost() {
+    const costBox = document.getElementById('costBox');
+    const stripCheck = document.getElementById('stripExifCheck');
+    const subNote = document.getElementById('costSubNote');
+    const valDisplay = document.getElementById('costValueDisplay');
+    if (!costBox || !valDisplay) return;
+
+    const baseCost = Number(costBox.dataset.baseCost) || 1;
+    const isStripping = stripCheck && stripCheck.checked;
+    const total = baseCost + (isStripping ? 1 : 0);
+
+    valDisplay.textContent = `${total} кр.`;
+    if (subNote) subNote.classList.toggle('hidden', !isStripping);
+    costBox.classList.toggle('has-extra-cost', Boolean(isStripping));
+  }
+
+  function updateUpscalePreviewInfo() {
+    if (!IS_UPSCALE_TAB || !upscaleInfoBox) return;
+    const mult = Number(document.getElementById('field-scaleFactor').value) || 2;
+    const mode = document.getElementById('field-upscaleMode').value;
+    const sharpMode = document.getElementById('field-sharpness').value;
+
+    // Визуальный отклик на холсте предпросмотра
+    if (mode === 'nearest') {
+      previewImage.style.imageRendering = 'pixelated';
+      previewImage.style.filter = sharpMode === 'high' ? 'contrast(1.08)' : 'none';
+    } else {
+      previewImage.style.imageRendering = 'auto';
+      previewImage.style.filter = sharpMode === 'high'
+        ? 'contrast(1.08) saturate(1.06) drop-shadow(0 0 1px rgba(255,255,255,0.15))'
+        : 'contrast(1.03)';
+    }
+
+    if (!hasLoadedFile) return;
+
+    const MAX_DIM = 16000;
+    const scale = Math.min(mult, MAX_DIM / Math.max(naturalW, naturalH));
+    const outW = Math.max(16, Math.round(naturalW * scale));
+    const outH = Math.max(16, Math.round(naturalH * scale));
+
+    const modeDesc = {
+      lanczos: 'Пирамидальный Lanczos3 (2 прохода) + Unsharp Mask',
+      mitchell: 'Сглаживание шума Median 3×3 + Mitchell-Netravali + контуры',
+      nearest: 'Точное дублирование пикселей Nearest Neighbor 1:1'
+    };
+
+    upscaleInfoBox.innerHTML = `
+      <div>Исходный размер: <b>${naturalW} × ${naturalH} px</b></div>
+      <div>После апскейла (${mult}x): <b style="color:var(--accent-cyan);">${outW} × ${outH} px</b></div>
+      <div style="margin-top:4px; color:#d8b4fe;">Алгоритм: ${modeDesc[mode]}</div>
+    `;
+  }
+
+  function setUpscaleOption(field, value, btn) {
+    setField(field, value, btn);
+    updateUpscalePreviewInfo();
+  }
+
+  function renderCropFrame(syncInputs = true) {
+    if (!IS_RESIZE_TAB || !cropFrame) return;
+    const dispW = previewImage.clientWidth;
+    const dispH = previewImage.clientHeight;
+    if (!dispW || !dispH) return;
+
+    cropFrame.style.left = `${boxL}px`;
+    cropFrame.style.top = `${boxT}px`;
+    cropFrame.style.width = `${boxW}px`;
+    cropFrame.style.height = `${boxH}px`;
+
+    const realX = Math.max(0, Math.round((boxL / dispW) * naturalW));
+    const realY = Math.max(0, Math.round((boxT / dispH) * naturalH));
+    const realW = Math.max(16, Math.round((boxW / dispW) * naturalW));
+    const realH = Math.max(16, Math.round((boxH / dispH) * naturalH));
+
+    fieldCropX.value = realX;
+    fieldCropY.value = realY;
+    fieldCropW.value = realW;
+    fieldCropH.value = realH;
+
+    if (syncInputs && widthInput && heightInput) {
+      widthInput.value = realW;
+      heightInput.value = realH;
+    }
+    if (cropSizeBadge) {
+      const shownW = widthInput ? widthInput.value : realW;
+      const shownH = heightInput ? heightInput.value : realH;
+      cropSizeBadge.textContent = `${shownW} × ${shownH} px`;
+    }
+  }
+
+  function initFullFrame() {
+    const dispW = previewImage.clientWidth;
+    const dispH = previewImage.clientHeight;
+    if (!dispW || !dispH) return;
+    boxL = 0;
+    boxT = 0;
+    boxW = dispW;
+    boxH = dispH;
+    renderCropFrame(true);
+  }
+
+  function fitFrameToAspect(aspect) {
+    if (!IS_RESIZE_TAB) return;
+    const dispW = previewImage.clientWidth;
+    const dispH = previewImage.clientHeight;
+    if (!dispW || !dispH || !aspect) return;
+
+    let newW = dispW;
+    let newH = newW / aspect;
+    if (newH > dispH) {
+      newH = dispH;
+      newW = newH * aspect;
+    }
+    boxW = Math.max(24, newW);
+    boxH = Math.max(24, newH);
+    boxL = (dispW - boxW) / 2;
+    boxT = (dispH - boxH) / 2;
+    renderCropFrame(false);
+  }
+
+  function handleSelectedFile(file) {
+    if (!file) return;
+    fileNameDisplay.textContent = file.name;
+    const url = URL.createObjectURL(file);
+    previewImage.src = url;
+
+    previewImage.onload = () => {
+      hasLoadedFile = true;
+      naturalW = previewImage.naturalWidth;
+      naturalH = previewImage.naturalHeight;
+      if (widthInput && heightInput) {
+        widthInput.value = naturalW;
+        heightInput.value = naturalH;
+      }
+      fileDimsDisplay.textContent = `${naturalW} × ${naturalH} px • ${(file.size / 1024).toFixed(1)} КБ`;
+      if (exifSummaryBox) {
+        exifSummaryBox.innerHTML = `
+          <div>Формат: <b style="color:#fff;">${file.type || 'image'}</b></div>
+          <div>Разрешение: <b style="color:#fff;">${naturalW} × ${naturalH} px</b></div>
+          <div>Размер файла: <b style="color:#fff;">${(file.size / 1024).toFixed(1)} КБ</b></div>
+        `;
+      }
+      dropzone.classList.add('hidden');
+      previewContainer.classList.remove('hidden');
+
+      updateUpscalePreviewInfo();
+      requestAnimationFrame(() => {
+        initFullFrame();
+      });
+    };
+  }
+
+  function resetImage() {
+    hasLoadedFile = false;
+    fileInput.value = '';
+    previewImage.src = '';
+    previewContainer.classList.add('hidden');
+    dropzone.classList.remove('hidden');
+    fileNameDisplay.textContent = 'Файл не выбран';
+    fileDimsDisplay.textContent = 'Загрузите изображение для начала работы';
+  }
+
+  function toggleGrid() {
+    cropGrid.classList.toggle('hidden');
+    gridToggleBtn.classList.toggle('active');
+  }
+
+  fileInput.addEventListener('change', () => handleSelectedFile(fileInput.files[0]));
+
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+      fileInput.files = e.dataTransfer.files;
+      handleSelectedFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  function activateCustomRatioButton() {
+    const group = document.getElementById('ratioGroup');
+    const customBtn = document.getElementById('customRatioBtn');
+    if (!group || !customBtn) return;
+    group.querySelectorAll('.matrix-btn').forEach(b => b.classList.remove('active'));
+    customBtn.classList.add('active');
+  }
+
+  if (widthInput && heightInput) {
+    widthInput.addEventListener('input', () => {
+      activateCustomRatioButton();
+      const wVal = Math.max(16, Number(widthInput.value) || naturalW);
+      if (lockRatioCheck && lockRatioCheck.checked && naturalW > 0) {
+        const curRatio = (boxW && boxH) ? (boxW / boxH) : (naturalW / naturalH);
+        heightInput.value = Math.max(16, Math.round(wVal / curRatio));
+      }
+      const hVal = Math.max(16, Number(heightInput.value) || naturalH);
+      fitFrameToAspect(wVal / hVal);
+      if (cropSizeBadge) cropSizeBadge.textContent = `${wVal} × ${hVal} px`;
+    });
+
+    heightInput.addEventListener('input', () => {
+      activateCustomRatioButton();
+      const hVal = Math.max(16, Number(heightInput.value) || naturalH);
+      if (lockRatioCheck && lockRatioCheck.checked && naturalH > 0) {
+        const curRatio = (boxW && boxH) ? (boxW / boxH) : (naturalW / naturalH);
+        widthInput.value = Math.max(16, Math.round(hVal * curRatio));
+      }
+      const wVal = Math.max(16, Number(widthInput.value) || naturalW);
+      fitFrameToAspect(wVal / hVal);
+      if (cropSizeBadge) cropSizeBadge.textContent = `${wVal} × ${hVal} px`;
+    });
+  }
+
+  function applyRatio(rx, ry, btn) {
+    btn.closest('.control-group').querySelectorAll('.matrix-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    if (!rx) {
+      if (lockRatioCheck) lockRatioCheck.checked = true;
+      initFullFrame();
+      widthInput.value = naturalW;
+      heightInput.value = naturalH;
+      if (cropSizeBadge) cropSizeBadge.textContent = `${naturalW} × ${naturalH} px`;
+      return;
+    }
+    if (rx === 'custom') {
+      if (lockRatioCheck) lockRatioCheck.checked = false;
+      widthInput.focus();
+      return;
+    }
+
+    const targetAspect = rx / ry;
+    const dispW = previewImage.clientWidth;
+    const dispH = previewImage.clientHeight;
+    if (dispW && dispH) {
+      let newW = dispW;
+      let newH = newW / targetAspect;
+      if (newH > dispH) {
+        newH = dispH;
+        newW = newH * targetAspect;
+      }
+      boxW = newW;
+      boxH = newH;
+      boxL = (dispW - boxW) / 2;
+      boxT = (dispH - boxH) / 2;
+      renderCropFrame(true);
+    } else {
+      const baseW = Number(widthInput.value) || naturalW;
+      heightInput.value = Math.round((baseW * ry) / rx);
+    }
+  }
+
+  // Перетаскивание и изменение размера рамки мышью на вкладке Ресайз
+  if (IS_RESIZE_TAB && cropFrame) {
+    let dragMode = null;
+    let startX = 0, startY = 0;
+    let startL = 0, startT = 0, startW = 0, startH = 0;
+    let startAspect = 1;
+
+    cropFrame.addEventListener('mousedown', (e) => {
+      const dispW = previewImage.clientWidth;
+      const dispH = previewImage.clientHeight;
+      if (!dispW || !dispH) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const handle = e.target.closest('.crop-handle');
+      dragMode = handle ? handle.dataset.dir : 'move';
+      startX = e.clientX;
+      startY = e.clientY;
+      startL = boxL;
+      startT = boxT;
+      startW = boxW;
+      startH = boxH;
+      startAspect = startW / Math.max(1, startH);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!dragMode) return;
+      const dispW = previewImage.clientWidth;
+      const dispH = previewImage.clientHeight;
+      if (!dispW || !dispH) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      const minSize = 28;
+
+      if (dragMode === 'move') {
+        boxL = Math.max(0, Math.min(dispW - boxW, startL + dx));
+        boxT = Math.max(0, Math.min(dispH - boxH, startT + dy));
+        renderCropFrame(false);
+        return;
+      }
+
+      let newL = startL;
+      let newT = startT;
+      let newW = startW;
+      let newH = startH;
+
+      if (dragMode.includes('e')) {
+        newW = Math.max(minSize, Math.min(dispW - startL, startW + dx));
+      }
+      if (dragMode.includes('s')) {
+        newH = Math.max(minSize, Math.min(dispH - startT, startH + dy));
+      }
+      if (dragMode.includes('w')) {
+        const maxDelta = startW - minSize;
+        const clampedDx = Math.max(-startL, Math.min(maxDelta, dx));
+        newL = startL + clampedDx;
+        newW = startW - clampedDx;
+      }
+      if (dragMode.includes('n')) {
+        const maxDelta = startH - minSize;
+        const clampedDy = Math.max(-startT, Math.min(maxDelta, dy));
+        newT = startT + clampedDy;
+        newH = startH - clampedDy;
+      }
+
+      const keepRatio = lockRatioCheck && lockRatioCheck.checked && dragMode.length === 2;
+      if (keepRatio && startAspect > 0) {
+        newH = newW / startAspect;
+        if (newT + newH > dispH) {
+          newH = dispH - newT;
+          newW = newH * startAspect;
+        }
+      } else {
+        activateCustomRatioButton();
+      }
+
+      boxL = newL;
+      boxT = newT;
+      boxW = newW;
+      boxH = newH;
+      renderCropFrame(true);
+    });
+
+    window.addEventListener('mouseup', () => {
+      dragMode = null;
+    });
+
+    window.addEventListener('resize', () => {
+      if (!previewContainer.classList.contains('hidden')) {
+        initFullFrame();
+      }
+    });
+  }
+
+  // Независимое переключение горизонтальной и вертикальной симметрии (можно выбрать обе сразу)
+  function toggleSymmetry(axis) {
+    if (axis === 'none') {
+      isFlipH = false;
+      isFlipV = false;
+    } else if (axis === 'h') {
+      isFlipH = !isFlipH;
+    } else if (axis === 'v') {
+      isFlipV = !isFlipV;
+    }
+
+    const fieldH = document.getElementById('field-flipH');
+    const fieldV = document.getElementById('field-flipV');
+    if (fieldH) fieldH.value = String(isFlipH);
+    if (fieldV) fieldV.value = String(isFlipV);
+
+    const noneBtn = document.getElementById('symNoneBtn');
+    const hBtn = document.getElementById('symHBtn');
+    const vBtn = document.getElementById('symVBtn');
+
+    if (noneBtn) noneBtn.classList.toggle('active', !isFlipH && !isFlipV);
+    if (hBtn) hBtn.classList.toggle('active', isFlipH);
+    if (vBtn) vBtn.classList.toggle('active', isFlipV);
+
+    const sx = isFlipH ? -1 : 1;
+    const sy = isFlipV ? -1 : 1;
+    previewImage.style.transform = (sx === 1 && sy === 1) ? 'none' : `scale(${sx}, ${sy})`;
+  }
+
+  function setField(field, value, btn) {
+    document.getElementById('field-' + field).value = value;
+    btn.parentElement.querySelectorAll('.matrix-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  // Управление плашкой статуса скачивания под окном
+  let statusTimeout = null;
+  function setDownloadStatus(state, text) {
+    const banner = document.getElementById('downloadStatusBanner');
+    const spinner = document.getElementById('statusSpinner');
+    const checkIcon = document.getElementById('statusCheckIcon');
+    const textEl = document.getElementById('downloadStatusText');
+    const submitBtn = document.getElementById('submitActionBtn');
+    if (!banner) return;
+
+    if (statusTimeout) clearTimeout(statusTimeout);
+
+    if (state === 'hidden') {
+      banner.classList.add('hidden');
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Обработать и скачать файл';
+      }
+      return;
+    }
+
+    banner.classList.remove('hidden');
+    textEl.textContent = text;
+
+    if (state === 'loading') {
+      banner.classList.remove('status-success');
+      spinner.classList.remove('hidden');
+      checkIcon.classList.add('hidden');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Обработка файла...';
+      }
+    } else if (state === 'success') {
+      banner.classList.add('status-success');
+      spinner.classList.add('hidden');
+      checkIcon.classList.remove('hidden');
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Обработать и скачать файл';
+      }
+      statusTimeout = setTimeout(() => {
+        banner.classList.add('hidden');
+      }, 5000);
+    }
+  }
+
+  document.getElementById('processForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    if (lockRatioCheck) {
+      formData.append('lockRatio', String(lockRatioCheck.checked));
+    }
+    const stripCheck = document.getElementById('stripExifCheck');
+    formData.append('stripExif', stripCheck ? String(stripCheck.checked) : 'false');
+
+    setDownloadStatus('loading', 'Идет обработка изображения и подготовка файла к скачиванию...');
+
+    try {
+      const res = await fetch('/api/process', { method: 'POST', body: formData });
+      if (!res.ok) {
+        setDownloadStatus('hidden');
+        const err = await res.json();
+        if (err.redirect) {
+          window.location.href = err.redirect;
+          return;
+        }
+        showCustomModal(err.error || 'Ошибка обработки файла');
+        return;
+      }
+
+      const remaining = res.headers.get('X-Credits-Remaining');
+      const creditsEl = document.getElementById('headerCredits');
+      if (remaining && creditsEl) {
+        creditsEl.textContent = remaining;
+      }
+
+      const outExt = res.headers.get('X-Out-Ext') || 'webp';
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `cosmoconvert-result.${outExt}`;
+      a.click();
+
+      setDownloadStatus('success', 'Готово! Файл обработан и скачивается в браузере.');
+    } catch (err) {
+      setDownloadStatus('hidden');
+      showCustomModal('Сбой соединения при обработке файла');
+    }
+  });
+
+  function showCustomModal(message) {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'custom-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="custom-modal">
+        <div class="custom-modal-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h3>Уведомление</h3>
+        <p>${message}</p>
+        <button type="button" class="auth-submit-btn" onclick="this.closest('.custom-modal-backdrop').remove()">Понятно</button>
+      </div>
+    `;
+    document.body.appendChild(backdrop);
+  }
+</script>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,41 @@
+<%- include('partials/header') %>
+
+<div class="profile-box">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
+    <div>
+      <h2 style="font-size:22px;">Аккаунт: <%= user.email %></h2>
+      <p style="color:var(--text-muted); font-size:13px; margin-top:4px;">История всех выполненных операций за последние 30 дней</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div class="credits-pill">Доступно сегодня: <b><%= user.credits %> из <%= dailyLimit %> кр.</b></div>
+      <a href="http://localhost:4000" target="_blank" class="btn-top outline">Панель сервера БД (:4000)</a>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Исходный файл</th>
+        <th>Выполненная операция</th>
+        <th>Списано</th>
+        <th>Дата и время</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (logs.length === 0) { %>
+        <tr><td colspan="4" style="color:var(--text-muted);">У вас пока нет выполненных операций</td></tr>
+      <% } else { %>
+        <% logs.forEach(log => { %>
+          <tr>
+            <td><%= log.fileName %></td>
+            <td><%= log.targetFormat %></td>
+            <td>-<%= log.cost %> кр.</td>
+            <td><%= new Date(log.createdAt).toLocaleString('ru-RU') %></td>
+          </tr>
+        <% }) %>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/footer') %>

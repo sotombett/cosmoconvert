@@ -1,0 +1,27 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           Int         @id @default(autoincrement())
+  email        String      @unique
+  passwordHash String
+  credits      Int         @default(15)
+  lastReset    DateTime    @default(now())
+  logs         ActionLog[]
+}
+
+model ActionLog {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName     String
+  targetFormat String
+  cost         Int      @default(1)
+  createdAt    DateTime @default(now())
+}

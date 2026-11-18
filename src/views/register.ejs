@@ -1,0 +1,47 @@
+<%- include('partials/header') %>
+
+<% if (typeof notice !== 'undefined' && notice) { %>
+  <div class="custom-modal-backdrop" id="noticeModal">
+    <div class="custom-modal">
+      <div class="custom-modal-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+      </div>
+      <h3>Лимит гостя исчерпан</h3>
+      <p><%= notice %></p>
+      <button type="button" class="auth-submit-btn" onclick="closeNoticeModal()">Перейти к регистрации</button>
+    </div>
+  </div>
+
+  <script>
+    function closeNoticeModal() {
+      document.getElementById('noticeModal').remove();
+      document.getElementById('regEmailInput').focus();
+      window.history.replaceState({}, document.title, '/register');
+    }
+  </script>
+<% } %>
+
+<div class="auth-page-wrap">
+  <div class="auth-card">
+    <h2>Регистрация</h2>
+    <p class="auth-subtitle">Полный доступ к инструментам, 15 кредитов в день и история за 30 дней</p>
+
+    <% if (error) { %>
+      <div class="error-msg"><%= error %></div>
+    <% } %>
+
+    <form action="/register" method="POST">
+      <input type="email" name="email" id="regEmailInput" placeholder="Электронная почта" required>
+      <input type="password" name="password" placeholder="Придумайте пароль" required>
+      <input type="password" name="confirmPassword" placeholder="Повторите пароль" required>
+      <button type="submit" class="auth-submit-btn">Создать аккаунт</button>
+      <div class="auth-switch-box">
+        Уже есть аккаунт? <a href="/login" class="auth-inline-link">Войти</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

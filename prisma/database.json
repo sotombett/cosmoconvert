@@ -1,0 +1,46 @@
+{
+  "server": "CosmoConvert Local DB Server (SQLite3 + Prisma ORM)",
+  "updatedAt": "2026-11-18T22:44:34.561Z",
+  "databaseFile": "prisma/dev.db",
+  "stats": {
+    "totalUsers": 1,
+    "totalActionLogs": 3
+  },
+  "tables": {
+    "User": [
+      {
+        "id": 1,
+        "email": "sotombett@gmail.com",
+        "passwordHash": "1dd16740731c9bbef384df792128c2b4483a9817697d0665f7e02379de8adfd6",
+        "credits": 12,
+        "lastReset": "2026-11-18T20:14:14.704Z"
+      }
+    ],
+    "ActionLog": [
+      {
+        "id": 1,
+        "userId": 1,
+        "fileName": "fisheye (5).png",
+        "targetFormat": "Апскейл 4x (Lanczos3)",
+        "cost": 3,
+        "createdAt": "2026-11-18T19:30:42.812Z"
+      },
+      {
+        "id": 2,
+        "userId": 1,
+        "fileName": "pixflow-result(1).png",
+        "targetFormat": "Полная очистка EXIF и GPS",
+        "cost": 1,
+        "createdAt": "2026-11-18T19:33:10.797Z"
+      },
+      {
+        "id": 3,
+        "userId": 1,
+        "fileName": "pixflow-result(1).jpeg",
+        "targetFormat": "Апскейл 4x → 5508×9792 (Lanczos3 HQ)",
+        "cost": 3,
+        "createdAt": "2026-11-18T21:49:35.646Z"
+      }
+    ]
+  }
+}
