@@ -1,37 +1,57 @@
 <%- include('partials/header') %>
 
+<!-- Слой 1: Мелкие мерцающие звезды на фоне ЗА контейнерами -->
+<canvas id="spaceStarsCanvas" class="space-stars-canvas" aria-hidden="true"></canvas>
+
+<!-- Слой 2: Летающие маленькие пиксельные частички (космическая пыль) -->
+<canvas id="cosmicDustCanvas" class="cosmic-dust-canvas" aria-hidden="true"></canvas>
+
 <section class="landing-hero">
-  <div class="landing-logo-badge">Онлайн-студия обработки графики</div>
-  <h1>Cosmo<span>Convert</span></h1>
-  <p>
-    Быстрый веб-инструмент для конвертации современных форматов, точного изменения пропорций кадра, алгоритмического увеличения четкости и очистки скрытых метаданных.
-  </p>
-  <div class="landing-cta-row">
-    <a href="/convert" class="btn-top" style="padding: 12px 24px; font-size: 13px;">Попробовать конвертер</a>
-    <% if (!user) { %>
-      <a href="/register" class="btn-top outline" style="padding: 12px 24px; font-size: 13px;">Зарегистрировать аккаунт</a>
-    <% } else { %>
-      <a href="/profile" class="btn-top outline" style="padding: 12px 24px; font-size: 13px;">Перейти в личный кабинет</a>
-    <% } %>
+  <div class="landing-hero-bg" aria-hidden="true"></div>
+  <div class="landing-hero-overlay" aria-hidden="true"></div>
+
+  <div class="landing-hero-content">
+    <div class="landing-logo-badge">Мультимедийная студия обработки файлов</div>
+
+    <h1 class="floating-hero-title" aria-label="CosmoConvert">
+      <span class="hero-word-main">
+        <span class="float-char" style="--dur:4.1s; --delay:-0.4s; --amp:-8px; --amp2:6px; --rot:-1.8deg;">C</span><span class="float-char" style="--dur:4.9s; --delay:-1.7s; --amp:-10px; --amp2:5px; --rot:1.4deg;">o</span><span class="float-char" style="--dur:3.7s; --delay:-2.9s; --amp:-6px; --amp2:8px; --rot:-1.1deg;">s</span><span class="float-char" style="--dur:5.3s; --delay:-0.9s; --amp:-9px; --amp2:7px; --rot:1.9deg;">m</span><span class="float-char" style="--dur:4.4s; --delay:-3.2s; --amp:-7px; --amp2:9px; --rot:-1.5deg;">o</span>
+      </span><span class="hero-word-accent">
+        <span class="float-char" style="--dur:3.9s; --delay:-1.2s; --amp:-11px; --amp2:6px; --rot:1.6deg;">C</span><span class="float-char" style="--dur:5.1s; --delay:-2.4s; --amp:-7px; --amp2:8px; --rot:-1.7deg;">o</span><span class="float-char" style="--dur:4.3s; --delay:-0.2s; --amp:-9px; --amp2:5px; --rot:1.2deg;">n</span><span class="float-char" style="--dur:5.6s; --delay:-3.8s; --amp:-6px; --amp2:9px; --rot:-2.0deg;">v</span><span class="float-char" style="--dur:3.8s; --delay:-1.9s; --amp:-10px; --amp2:6px; --rot:1.5deg;">e</span><span class="float-char" style="--dur:4.7s; --delay:-2.7s; --amp:-8px; --amp2:7px; --rot:-1.3deg;">r</span><span class="float-char" style="--dur:5.2s; --delay:-0.7s; --amp:-9px; --amp2:8px; --rot:1.8deg;">t</span>
+      </span>
+    </h1>
+
+    <p class="landing-hero-desc">
+      Единый веб-сервис для конвертации изображений, документов, аудио и видео, точной геометрии кадра, алгоритмического апскейла, редактирования звуковых дорожек и очистки метаданных.
+    </p>
+
+    <div class="landing-cta-row">
+      <a href="/convert" class="btn-top hero-btn-primary">Открыть конвертер</a>
+      <% if (!user) { %>
+        <a href="/register" class="btn-top hero-btn-secondary">Зарегистрировать аккаунт</a>
+      <% } else { %>
+        <a href="/profile" class="btn-top hero-btn-secondary">Перейти в личный кабинет</a>
+      <% } %>
+    </div>
   </div>
 </section>
 
 <section class="features-grid">
   <a href="/convert" class="feature-card">
-    <h3>Конвертация форматов</h3>
-    <p>Экспорт в WebP, AVIF, PNG и JPEG с гибким управлением качеством и весом файла.</p>
+    <h3>Конвертация</h3>
+    <p>Изображения (WebP, AVIF, PNG, JPEG, ICO), документы (PDF, DOCX, DOC, HTML, TXT, MD, JSON, CSV) и мультимедиа (MP4 в MP3/WAV).</p>
   </a>
-  <a href="/resize" class="feature-card">
-    <h3>Ресайз и пропорции</h3>
-    <p>Масштабирование по пикселям, 15 пресетов пропорций и одновременное отражение по двум осям.</p>
+  <a href="/images/process" class="feature-card">
+    <h3>Изображения</h3>
+    <p>Объединенная студия ресайза, 15 пресетов пропорций, симметрии, алгоритмического апскейла (2x/4x) и очистки EXIF.</p>
   </a>
-  <a href="/upscale" class="feature-card">
-    <h3>Алгоритмический апскейл</h3>
-    <p>Многоступенчатое увеличение в 2x и 4x раза через Lanczos3, Mitchell или Nearest Neighbor.</p>
+  <a href="/audio" class="feature-card">
+    <h3>Аудио-студия</h3>
+    <p>3-полосная визуализация волны, обрезка треков на таймлайне, изменение тональности (Pitch), скорости и громкости.</p>
   </a>
-  <a href="/exif" class="feature-card">
-    <h3>Защита метаданных</h3>
-    <p>Полное удаление EXIF-тегов, модели устройства и GPS-геолокации перед публикацией в сеть.</p>
+  <a href="/video/extract-audio" class="feature-card">
+    <h3>Видео → Аудио</h3>
+    <p>Быстрое извлечение чистой аудиодорожки в форматы MP3, WAV и OGG из видеороликов MP4, WebM и MOV.</p>
   </a>
 </section>
 
@@ -39,13 +59,13 @@
   <div>
     <h2>Зачем нужна регистрация на CosmoConvert?</h2>
     <p>
-      Без входа в аккаунт вам доступен ознакомительный режим на <b><%= guestLimit %> бесплатных действия</b> (конвертация или ресайз), чтобы оценить скорость работы сервиса. Создание аккаунта занимает 15 секунд и открывает полный доступ ко всем инструментам:
+      Без входа в аккаунт вам доступен ознакомительный режим на <b><%= guestLimit %> бесплатных действия</b> (конвертация и базовый ресайз), чтобы оценить скорость работы сервиса. Создание аккаунта открывает полный доступ ко всем модулям:
     </p>
     <ul class="why-list">
-      <li><span class="check-mark">[+]</span> Разблокировка функции удаления метаданных EXIF и GPS во всех вкладках</li>
-      <li><span class="check-mark">[+]</span> Доступ к ресурсоемкому алгоритмическому апскейлу (2x и 4x)</li>
+      <li><span class="check-mark">[+]</span> Доступ к алгоритмическому апскейлу (2x/4x) и очистке метаданных EXIF и GPS</li>
+      <li><span class="check-mark">[+]</span> Полный доступ к Аудио-студии и извлечению звуковых дорожек из видео</li>
       <li><span class="check-mark">[+]</span> Ежедневно возобновляемый баланс в 15 кредитов вместо разового пробного лимита</li>
-      <li><span class="check-mark">[+]</span> Сохранение детальной истории всех операций и параметров за последние 30 дней</li>
+      <li><span class="check-mark">[+]</span> Сохранение истории операций за 30 дней с возможностью повторного скачивания обработанных файлов</li>
     </ul>
   </div>
 
@@ -60,20 +80,20 @@
     </div>
     <div class="compare-row">
       <span>Конвертация и Ресайз</span>
-      <span style="color:#4ade80; font-family:var(--font-mono); font-size:12px;">Доступно всем</span>
+      <span style="color:var(--success); font-family:var(--font-mono); font-size:12px;">Доступно всем</span>
     </div>
     <div class="compare-row">
-      <span>Очистка EXIF-тегов</span>
+      <span>Очистка EXIF и Апскейл</span>
       <span class="inline-lock-tag">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         Только с аккаунтом
       </span>
     </div>
     <div class="compare-row">
-      <span>Апскейл 2x / 4x</span>
+      <span>Аудио-студия и Видео</span>
       <span class="inline-lock-tag">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        Только с аккаунтом
+        Полный функционал
       </span>
     </div>
     <div class="compare-row">
@@ -85,5 +105,163 @@
     </div>
   </div>
 </section>
+
+<script>
+  (function initHomeSpaceEffects() {
+    const starsCanvas = document.getElementById('spaceStarsCanvas');
+    const dustCanvas = document.getElementById('cosmicDustCanvas');
+    if (!starsCanvas || !dustCanvas) return;
+
+    const sCtx = starsCanvas.getContext('2d');
+    const dCtx = dustCanvas.getContext('2d');
+
+    // Переносим фоновые canvas прямо в body, чтобы они корректно работали по z-index относительно main/header/footer
+    document.body.prepend(starsCanvas);
+    document.body.appendChild(dustCanvas);
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    let stars = [];
+    let dust = [];
+
+    function isLightTheme() {
+      return document.documentElement.getAttribute('data-theme') === 'light';
+    }
+
+    function createParticles() {
+      const area = width * height;
+      const starCount = Math.max(95, Math.min(220, Math.floor(area / 9500)));
+      const dustCount = Math.max(42, Math.min(95, Math.floor(area / 22000)));
+
+      const starColorsDark = ['#ffffff', '#e0e7ff', '#c7d2fe', '#a5b4fc', '#7dd3fc'];
+      const starColorsLight = ['#4f46e5', '#6366f1', '#818cf8', '#0284c7', '#4338ca'];
+
+      const dustColorsDark = ['#e0e7ff', '#a5b4fc', '#818cf8', '#38bdf8', '#c4b5fd'];
+      const dustColorsLight = ['#4f46e5', '#6366f1', '#0284c7', '#7c3aed', '#4338ca'];
+
+      stars = Array.from({ length: starCount }, () => {
+        const isCross = Math.random() < 0.14;
+        return {
+          x: Math.floor(Math.random() * width),
+          y: Math.floor(Math.random() * height),
+          size: isCross ? 2 : (Math.random() < 0.72 ? 1 : 2),
+          cross: isCross,
+          baseAlpha: 0.25 + Math.random() * 0.6,
+          twinkleSpeed: 0.6 + Math.random() * 2.2,
+          phase: Math.random() * Math.PI * 2,
+          colorIdx: Math.floor(Math.random() * 5)
+        };
+      });
+
+      dust = Array.from({ length: dustCount }, () => {
+        const sizeChoices = [2, 2, 2, 3, 3, 4];
+        return {
+          x: Math.random() * width,
+          y: Math.random() * height,
+          size: sizeChoices[Math.floor(Math.random() * sizeChoices.length)],
+          vy: -(0.14 + Math.random() * 0.36),
+          vx: (Math.random() - 0.5) * 0.22,
+          swayAmp: 0.12 + Math.random() * 0.32,
+          swayFreq: 0.4 + Math.random() * 1.1,
+          phase: Math.random() * Math.PI * 2,
+          alpha: 0.24 + Math.random() * 0.5,
+          colorIdx: Math.floor(Math.random() * 5)
+        };
+      });
+
+      stars._paletteDark = starColorsDark;
+      stars._paletteLight = starColorsLight;
+      dust._paletteDark = dustColorsDark;
+      dust._paletteLight = dustColorsLight;
+    }
+
+    function resize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      starsCanvas.width = width;
+      starsCanvas.height = height;
+      dustCanvas.width = width;
+      dustCanvas.height = height;
+      createParticles();
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+
+    let lastTime = performance.now();
+
+    function animate(now) {
+      const dt = Math.min(0.05, (now - lastTime) / 1000);
+      lastTime = now;
+      const t = now * 0.001;
+      const light = isLightTheme();
+
+      // 1. Отрисовка маленьких мерцающих звезд за контейнерами
+      sCtx.clearRect(0, 0, width, height);
+      const sPal = light ? stars._paletteLight : stars._paletteDark;
+      const starOpacityMul = light ? 0.55 : 1.0;
+
+      for (let i = 0; i < stars.length; i++) {
+        const st = stars[i];
+        const twinkle = 0.55 + 0.45 * Math.sin(t * st.twinkleSpeed + st.phase);
+        sCtx.globalAlpha = st.baseAlpha * twinkle * starOpacityMul;
+        sCtx.fillStyle = sPal[st.colorIdx];
+
+        const sx = Math.round(st.x);
+        const sy = Math.round(st.y);
+
+        if (st.cross) {
+          // Маленькая пиксельная звездочка-крестик 5x5
+          sCtx.fillRect(sx, sy, 2, 2);
+          sCtx.globalAlpha *= 0.55;
+          sCtx.fillRect(sx - 2, sy, 2, 2);
+          sCtx.fillRect(sx + 2, sy, 2, 2);
+          sCtx.fillRect(sx, sy - 2, 2, 2);
+          sCtx.fillRect(sx, sy + 2, 2, 2);
+        } else {
+          sCtx.fillRect(sx, sy, st.size, st.size);
+        }
+      }
+      sCtx.globalAlpha = 1;
+
+      // 2. Отрисовка летающих пиксельных частичек космической пыли
+      dCtx.clearRect(0, 0, width, height);
+      const dPal = light ? dust._paletteLight : dust._paletteDark;
+      const dustOpacityMul = light ? 0.48 : 0.92;
+
+      for (let i = 0; i < dust.length; i++) {
+        const p = dust[i];
+        p.y += p.vy * (dt * 60);
+        p.x += (p.vx + Math.sin(t * p.swayFreq + p.phase) * p.swayAmp) * (dt * 60);
+
+        if (p.y < -8) {
+          p.y = height + 8;
+          p.x = Math.random() * width;
+        }
+        if (p.x < -8) p.x = width + 8;
+        if (p.x > width + 8) p.x = -8;
+
+        const pulse = 0.65 + 0.35 * Math.sin(t * 1.6 + p.phase);
+        const px = Math.round(p.x);
+        const py = Math.round(p.y);
+
+        dCtx.fillStyle = dPal[p.colorIdx];
+        dCtx.globalAlpha = p.alpha * pulse * dustOpacityMul;
+        dCtx.fillRect(px, py, p.size, p.size);
+
+        // Легкий пиксельный ореол у крупных пылинок
+        if (p.size >= 3) {
+          dCtx.globalAlpha = p.alpha * pulse * dustOpacityMul * 0.25;
+          dCtx.fillRect(px - 1, py - 1, p.size + 2, p.size + 2);
+        }
+      }
+      dCtx.globalAlpha = 1;
+
+      requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+  })();
+</script>
 
 <%- include('partials/footer') %>

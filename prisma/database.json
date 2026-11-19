@@ -1,10 +1,10 @@
 {
   "server": "CosmoConvert Local DB Server (SQLite3 + Prisma ORM)",
-  "updatedAt": "2026-11-18T22:44:34.561Z",
+  "updatedAt": "2026-11-19T02:25:32.454Z",
   "databaseFile": "prisma/dev.db",
   "stats": {
-    "totalUsers": 1,
-    "totalActionLogs": 3
+    "totalUsers": 2,
+    "totalActionLogs": 4
   },
   "tables": {
     "User": [
@@ -12,8 +12,17 @@
         "id": 1,
         "email": "sotombett@gmail.com",
         "passwordHash": "1dd16740731c9bbef384df792128c2b4483a9817697d0665f7e02379de8adfd6",
-        "credits": 12,
+        "role": "USER",
+        "credits": 9,
         "lastReset": "2026-11-18T20:14:14.704Z"
+      },
+      {
+        "id": 2,
+        "email": "admin@cosmoconvert.local",
+        "passwordHash": "783b610b74350ce1b7754d1a65f4e69cf27e0238aea6e9de32cb7983fa9a91d8",
+        "role": "ADMIN",
+        "credits": null,
+        "lastReset": "2026-11-19T00:33:37.103Z"
       }
     ],
     "ActionLog": [
@@ -23,6 +32,11 @@
         "fileName": "fisheye (5).png",
         "targetFormat": "Апскейл 4x (Lanczos3)",
         "cost": 3,
+        "outputName": null,
+        "mimeType": null,
+        "fileSize": null,
+        "hasFileInDb": false,
+        "storedFile": null,
         "createdAt": "2026-11-18T19:30:42.812Z"
       },
       {
@@ -31,6 +45,11 @@
         "fileName": "pixflow-result(1).png",
         "targetFormat": "Полная очистка EXIF и GPS",
         "cost": 1,
+        "outputName": null,
+        "mimeType": null,
+        "fileSize": null,
+        "hasFileInDb": false,
+        "storedFile": null,
         "createdAt": "2026-11-18T19:33:10.797Z"
       },
       {
@@ -39,7 +58,25 @@
         "fileName": "pixflow-result(1).jpeg",
         "targetFormat": "Апскейл 4x → 5508×9792 (Lanczos3 HQ)",
         "cost": 3,
+        "outputName": null,
+        "mimeType": null,
+        "fileSize": null,
+        "hasFileInDb": false,
+        "storedFile": null,
         "createdAt": "2026-11-18T21:49:35.646Z"
+      },
+      {
+        "id": 4,
+        "userId": 1,
+        "fileName": "spaceeeeewebp.png",
+        "targetFormat": "Обработка + Апскейл 4x → 3200×1796 (Mitchell)",
+        "cost": 3,
+        "outputName": null,
+        "mimeType": null,
+        "fileSize": null,
+        "hasFileInDb": false,
+        "storedFile": null,
+        "createdAt": "2026-11-19T00:03:01.575Z"
       }
     ]
   }

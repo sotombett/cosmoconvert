@@ -1,0 +1,642 @@
+<%- include('partials/header') %>
+
+<div class="page-title">
+  <h1>Аудио-студия</h1>
+  <p>Изменение <b>тональности (Pitch)</b>, <b>скорости воспроизведения</b>, <b>усиления громкости</b> и точная обрезка трека по 3-полосной волновой форме.</p>
+</div>
+
+<div class="audio-studio-grid">
+  <!-- ЛЕВАЯ ОСНОВНАЯ ПАНЕЛЬ -->
+  <div class="studio-panel">
+    <div class="file-info-bar">
+      <div class="file-meta">
+        <div class="file-meta-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <div style="min-width:0;">
+          <div class="file-meta-name" id="audioFileName">Аудиофайл не выбран</div>
+          <div class="file-meta-dims" id="audioFileMeta">Загрузите MP3, WAV, OGG, M4A или FLAC до 40 МБ</div>
+        </div>
+      </div>
+      <button type="button" class="icon-trash-btn" onclick="resetAudioStudio()" title="Сбросить трек">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>
+
+    <!-- ЗОНА ЗАГРУЗКИ (СКРЫВАЕТСЯ ПОСЛЕ ВЫБОРА ТРЕКА) -->
+    <label class="dropzone-overlay" id="audioDropzone" style="min-height:260px;">
+      <input type="file" id="audioFileInput" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.webm">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="1.8" style="margin-bottom:12px;"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      <div style="font-weight:700; font-size:15px; margin-bottom:6px;">Перетащите аудиофайл сюда или <span style="color:var(--accent-bright); text-decoration:underline;">выберите с диска</span></div>
+      <div style="font-size:12px; color:var(--text-muted);">Поддерживаются MP3, WAV, OGG, M4A, FLAC (до 40 МБ)</div>
+    </label>
+
+    <!-- 3-BAND WAVEFORM TIMELINE TRIMMER -->
+    <div class="waveform-card hidden" id="waveformCard">
+      <div class="waveform-header">
+        <span>3-полосная волновая форма и обрезка:</span>
+        <div class="band-legend">
+          <span class="band-dot"><i style="background:#4f46e5;"></i>Бас</span>
+          <span class="band-dot"><i style="background:#818cf8;"></i>Средние</span>
+          <span class="band-dot"><i style="background:#38bdf8;"></i>Высокие</span>
+        </div>
+      </div>
+
+      <div class="waveform-canvas-wrap" id="waveformWrap">
+        <canvas id="waveformCanvas"></canvas>
+        <div class="trim-mask" id="trimMaskL" style="left:0; width:0;"></div>
+        <div class="trim-mask" id="trimMaskR" style="right:0; width:0;"></div>
+        <div class="playhead-line" id="playheadLine" style="left:0;"></div>
+        <div class="trim-handle" id="trimHandleL" style="left:0;" title="Начало обрезки"></div>
+        <div class="trim-handle" id="trimHandleR" style="left:calc(100% - 3px);" title="Конец обрезки"></div>
+      </div>
+
+      <div class="waveform-footer">
+        <span>Перетащите маркеры для обрезки. Клик по волне — перемотка.</span>
+        <span id="trimRangeText">Диапазон: 00:00 — 00:00</span>
+      </div>
+    </div>
+
+    <!-- ПЛЕЕР ТРЕКА -->
+    <div class="audio-player-card hidden" id="playerCard">
+      <div class="vinyl-art">
+        <div class="vinyl-disc" id="vinylDisc"></div>
+      </div>
+      <div class="player-controls-wrap">
+        <div class="player-track-title" id="playerTrackTitle">—</div>
+        <div class="player-track-sub" id="playerTrackSub">PCM • 44.1 kHz</div>
+        <div class="player-bar-row">
+          <button type="button" class="play-btn-circle" id="playPauseBtn" onclick="toggleAudioPlay()" title="Воспроизвести / Пауза">
+            <svg id="iconPlay" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+            <svg id="iconPause" class="hidden" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          </button>
+          <input type="range" id="seekSlider" class="range-slider" min="0" max="1000" value="0">
+          <span id="playerTimeDisplay" style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted); white-space:nowrap;">00:00 / 00:00</span>
+        </div>
+      </div>
+      <audio id="hiddenAudioEl" class="hidden"></audio>
+    </div>
+
+    <!-- ПАРАМЕТРЫ ОБРАБОТКИ ЗВУКА -->
+    <div class="audio-controls-grid">
+      <div class="dsp-box">
+        <div class="control-header">
+          <span>Тональность (Pitch)</span>
+          <span class="dsp-val" id="pitchValText">0 пт (1.00x)</span>
+        </div>
+        <input type="range" id="pitchSlider" class="range-slider" min="-12" max="12" step="1" value="0" oninput="updateDspParams()">
+        <div class="btn-matrix-3">
+          <button type="button" class="matrix-btn compact" onclick="setPitch(-2)">-2 пт</button>
+          <button type="button" class="matrix-btn compact" onclick="setPitch(0)">Сброс</button>
+          <button type="button" class="matrix-btn compact" onclick="setPitch(2)">+2 пт</button>
+        </div>
+      </div>
+
+      <div class="dsp-box">
+        <div class="control-header">
+          <span>Скорость трека</span>
+          <span class="dsp-val" id="speedValText">1.00x</span>
+        </div>
+        <input type="range" id="speedSlider" class="range-slider" min="50" max="200" step="5" value="100" oninput="updateDspParams()">
+        <div class="btn-matrix-3">
+          <button type="button" class="matrix-btn compact" onclick="setSpeed(80)">0.8x</button>
+          <button type="button" class="matrix-btn compact" onclick="setSpeed(100)">1.0x</button>
+          <button type="button" class="matrix-btn compact" onclick="setSpeed(125)">1.25x</button>
+        </div>
+      </div>
+
+      <div class="dsp-box">
+        <div class="control-header">
+          <span>Громкость (Gain)</span>
+          <span class="dsp-val" id="volumeValText">100%</span>
+        </div>
+        <input type="range" id="volumeSlider" class="range-slider" min="10" max="200" step="5" value="100" oninput="updateDspParams()">
+        <div class="btn-matrix-3">
+          <button type="button" class="matrix-btn compact" onclick="setVolume(75)">75%</button>
+          <button type="button" class="matrix-btn compact" onclick="setVolume(100)">100%</button>
+          <button type="button" class="matrix-btn compact" onclick="setVolume(150)">150%</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ПРАВАЯ КОЛОНКА: RENDERER LOG И ЭКСПОРТ -->
+  <div class="studio-panel">
+    <div class="renderer-log-header">
+      <span>&gt;_ RENDERER LOG</span>
+      <button type="button" class="clear-log-btn" onclick="clearAudioLog()">Очистить</button>
+    </div>
+
+    <div class="renderer-terminal" id="rendererLog">
+      <div>&gt; CosmoConvert Audio Engine v2.0 инициализирован</div>
+      <div class="log-line-info">&gt; Ожидание загрузки аудиофайла...</div>
+    </div>
+
+    <% if (isAdmin) { %>
+      <div class="advanced-toggle-box admin-cost-box">
+        <span>Режим администратора</span>
+        <span>∞ (Безлимит)</span>
+      </div>
+    <% } else { %>
+      <div class="advanced-toggle-box">
+        <span>Стоимость обработки</span>
+        <span>2 кр.</span>
+      </div>
+    <% } %>
+
+    <div class="control-group">
+      <div class="control-header"><span>Выходной формат</span></div>
+      <input type="hidden" id="audioOutFormat" value="wav">
+      <div class="btn-matrix-2">
+        <button type="button" class="matrix-btn active" onclick="pickAudioFormat('wav', this)">WAV (Lossless)</button>
+        <button type="button" class="matrix-btn" onclick="pickAudioFormat('mp3', this)">MP3 (320 kbps)</button>
+      </div>
+    </div>
+
+    <div class="upscale-info-box" id="audioSummaryBox">
+      Загрузите аудиофайл слева для просмотра итоговой длительности и параметров рендера.
+    </div>
+
+    <button type="button" class="generate-btn" id="renderAudioBtn" onclick="renderAndDownloadAudio()">Обработать и скачать аудио</button>
+  </div>
+</div>
+
+<!-- ПЛАШКА СТАТУСА ПОД ОКНОМ -->
+<div id="downloadStatusBanner" class="download-status-banner hidden">
+  <div class="status-spinner hidden" id="statusSpinner"></div>
+  <svg id="statusCheckIcon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+  <svg id="statusErrorIcon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span id="downloadStatusText">Обработка...</span>
+</div>
+
+<script src="/audio-engine.js"></script>
+<script>
+  const audioFileInput = document.getElementById('audioFileInput');
+  const audioDropzone = document.getElementById('audioDropzone');
+  const waveformCard = document.getElementById('waveformCard');
+  const waveformWrap = document.getElementById('waveformWrap');
+  const waveformCanvas = document.getElementById('waveformCanvas');
+  const playerCard = document.getElementById('playerCard');
+  const hiddenAudioEl = document.getElementById('hiddenAudioEl');
+  const seekSlider = document.getElementById('seekSlider');
+  const vinylDisc = document.getElementById('vinylDisc');
+  const rendererLog = document.getElementById('rendererLog');
+
+  let currentFile = null;
+  let decodedBuffer = null;
+  let waveBands = null;
+  let trimStartRatio = 0;
+  let trimEndRatio = 1;
+  let isPlaying = false;
+  let rafId = null;
+
+  function appendLog(msg, cls = '') {
+    const div = document.createElement('div');
+    if (cls) div.className = cls;
+    div.textContent = '> ' + msg;
+    rendererLog.appendChild(div);
+    rendererLog.scrollTop = rendererLog.scrollHeight;
+  }
+
+  function clearAudioLog() {
+    rendererLog.innerHTML = '<div>&gt; Журнал очищен.</div>';
+  }
+
+  function pickAudioFormat(fmt, btn) {
+    document.getElementById('audioOutFormat').value = fmt;
+    btn.parentElement.querySelectorAll('.matrix-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    appendLog(`Выбран формат экспорта: ${fmt.toUpperCase()}`);
+  }
+
+  function setPitch(v) { document.getElementById('pitchSlider').value = v; updateDspParams(); }
+  function setSpeed(v) { document.getElementById('speedSlider').value = v; updateDspParams(); }
+  function setVolume(v) { document.getElementById('volumeSlider').value = v; updateDspParams(); }
+
+  function getDspValues() {
+    const pitch = Number(document.getElementById('pitchSlider').value) || 0;
+    const speed = (Number(document.getElementById('speedSlider').value) || 100) / 100;
+    const volume = Number(document.getElementById('volumeSlider').value) || 100;
+    const pitchMult = Math.pow(2, pitch / 12);
+    const effectiveRate = Math.max(0.25, Math.min(4.0, speed * pitchMult));
+    return { pitch, speed, volume, pitchMult, effectiveRate };
+  }
+
+  function updateDspParams() {
+    const { pitch, speed, volume, pitchMult, effectiveRate } = getDspValues();
+    document.getElementById('pitchValText').textContent = `${pitch > 0 ? '+' : ''}${pitch} пт (${pitchMult.toFixed(2)}x)`;
+    document.getElementById('speedValText').textContent = `${speed.toFixed(2)}x`;
+    document.getElementById('volumeValText').textContent = `${volume}%`;
+
+    // Применяем параметры прямо в живом предпрослушивании
+    if (hiddenAudioEl) {
+      hiddenAudioEl.preservesPitch = false;
+      hiddenAudioEl.mozPreservesPitch = false;
+      hiddenAudioEl.webkitPreservesPitch = false;
+      hiddenAudioEl.playbackRate = Math.max(0.25, Math.min(4.0, effectiveRate));
+      hiddenAudioEl.volume = Math.min(1, volume / 100);
+    }
+
+    updateAudioSummary();
+  }
+
+  function updateAudioSummary() {
+    const box = document.getElementById('audioSummaryBox');
+    if (!decodedBuffer) return;
+    const dur = decodedBuffer.duration;
+    const s = trimStartRatio * dur;
+    const e = trimEndRatio * dur;
+    const sliceDur = Math.max(0.1, e - s);
+    const { pitch, speed, volume, effectiveRate } = getDspValues();
+    const finalDur = sliceDur / effectiveRate;
+
+    document.getElementById('trimRangeText').textContent =
+      `Обрезка: ${CosmoAudioEngine.formatTime(s)} — ${CosmoAudioEngine.formatTime(e)} (Длит.: ${CosmoAudioEngine.formatTime(dur)})`;
+
+    box.innerHTML = `
+      <div>Выбранный фрагмент: <b>${CosmoAudioEngine.formatTime(s)} → ${CosmoAudioEngine.formatTime(e)}</b></div>
+      <div>Итоговая длительность: <b style="color:var(--accent-cyan);">${CosmoAudioEngine.formatTime(finalDur)}</b></div>
+      <div>Параметры: <b>Pitch ${pitch >= 0 ? '+' : ''}${pitch} пт • ${speed.toFixed(2)}x • ${volume}%</b></div>
+    `;
+  }
+
+  function drawWaveform() {
+    if (!waveBands) return;
+    const rect = waveformWrap.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    waveformCanvas.width = Math.max(300, Math.floor(rect.width * dpr));
+    waveformCanvas.height = Math.floor(rect.height * dpr);
+
+    const ctx = waveformCanvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const w = rect.width;
+    const h = rect.height;
+    const midY = h / 2;
+
+    ctx.fillStyle = '#060711';
+    ctx.fillRect(0, 0, w, h);
+
+    // Фоновая вертикальная сетка
+    ctx.strokeStyle = 'rgba(99, 102, 241, 0.12)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < w; x += 28) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+
+    const n = waveBands.bass.length;
+    const step = w / n;
+    const barW = Math.max(1.5, step * 0.72);
+
+    for (let i = 0; i < n; i++) {
+      const x = i * step;
+      const bH = Math.max(3, waveBands.bass[i] * (midY - 8));
+      const mH = Math.max(2, waveBands.mid[i] * (midY - 14));
+      const hH = Math.max(1.5, waveBands.high[i] * (midY - 24));
+
+      ctx.fillStyle = 'rgba(79, 70, 229, 0.85)';
+      ctx.fillRect(x, midY - bH, barW, bH * 2);
+
+      ctx.fillStyle = 'rgba(129, 140, 248, 0.85)';
+      ctx.fillRect(x, midY - mH, barW, mH * 2);
+
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.9)';
+      ctx.fillRect(x, midY - hH, barW, hH * 2);
+    }
+  }
+
+  function updateTrimUI() {
+    const lPct = trimStartRatio * 100;
+    const rPct = (1 - trimEndRatio) * 100;
+    document.getElementById('trimMaskL').style.width = `${lPct}%`;
+    document.getElementById('trimMaskR').style.width = `${rPct}%`;
+    document.getElementById('trimHandleL').style.left = `${lPct}%`;
+    document.getElementById('trimHandleR').style.left = `calc(${trimEndRatio * 100}% - 3px)`;
+    updateAudioSummary();
+  }
+
+  // Перетаскивание ручек обрезки + клик по волне для перемотки
+  let draggingHandle = null;
+  document.getElementById('trimHandleL').addEventListener('mousedown', (e) => { e.stopPropagation(); draggingHandle = 'left'; });
+  document.getElementById('trimHandleR').addEventListener('mousedown', (e) => { e.stopPropagation(); draggingHandle = 'right'; });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!draggingHandle || !decodedBuffer) return;
+    const rect = waveformWrap.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    if (draggingHandle === 'left') {
+      trimStartRatio = Math.min(ratio, trimEndRatio - 0.02);
+    } else {
+      trimEndRatio = Math.max(ratio, trimStartRatio + 0.02);
+    }
+    updateTrimUI();
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (draggingHandle && decodedBuffer) {
+      const s = CosmoAudioEngine.formatTime(trimStartRatio * decodedBuffer.duration);
+      const e = CosmoAudioEngine.formatTime(trimEndRatio * decodedBuffer.duration);
+      appendLog(`Обновлена обрезка: ${s} — ${e}`);
+    }
+    draggingHandle = null;
+  });
+
+  waveformCanvas.addEventListener('click', (e) => {
+    if (!decodedBuffer) return;
+    const rect = waveformWrap.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    hiddenAudioEl.currentTime = ratio * decodedBuffer.duration;
+    updatePlayhead();
+  });
+
+  function updatePlayhead() {
+    if (!decodedBuffer) return;
+    const dur = decodedBuffer.duration || 1;
+    const cur = hiddenAudioEl.currentTime || 0;
+    const pct = Math.min(100, (cur / dur) * 100);
+    document.getElementById('playheadLine').style.left = `${pct}%`;
+    seekSlider.value = Math.round((cur / dur) * 1000);
+    document.getElementById('playerTimeDisplay').textContent =
+      `${CosmoAudioEngine.formatTime(cur)} / ${CosmoAudioEngine.formatTime(dur)}`;
+
+    // Автопауза на конце обрезки
+    if (isPlaying && cur >= trimEndRatio * dur) {
+      hiddenAudioEl.pause();
+      hiddenAudioEl.currentTime = trimStartRatio * dur;
+      setPlayState(false);
+      return;
+    }
+
+    if (isPlaying) rafId = requestAnimationFrame(updatePlayhead);
+  }
+
+  function setPlayState(playing) {
+    isPlaying = playing;
+    document.getElementById('iconPlay').classList.toggle('hidden', playing);
+    document.getElementById('iconPause').classList.toggle('hidden', !playing);
+    vinylDisc.classList.toggle('spinning', playing);
+    if (playing) rafId = requestAnimationFrame(updatePlayhead);
+    else if (rafId) cancelAnimationFrame(rafId);
+  }
+
+  function toggleAudioPlay() {
+    if (!decodedBuffer) return;
+    if (isPlaying) {
+      hiddenAudioEl.pause();
+      setPlayState(false);
+    } else {
+      const startSec = trimStartRatio * decodedBuffer.duration;
+      const endSec = trimEndRatio * decodedBuffer.duration;
+      if (hiddenAudioEl.currentTime < startSec || hiddenAudioEl.currentTime >= endSec) {
+        hiddenAudioEl.currentTime = startSec;
+      }
+      updateDspParams();
+      hiddenAudioEl.play();
+      setPlayState(true);
+    }
+  }
+
+  seekSlider.addEventListener('input', () => {
+    if (!decodedBuffer) return;
+    hiddenAudioEl.currentTime = (Number(seekSlider.value) / 1000) * decodedBuffer.duration;
+    updatePlayhead();
+  });
+
+  hiddenAudioEl.addEventListener('ended', () => setPlayState(false));
+
+  async function handleAudioFile(file) {
+    if (!file) return;
+    setStatus('hidden');
+    audioDropzone.classList.remove('dropzone-error');
+    currentFile = file;
+    trimStartRatio = 0;
+    trimEndRatio = 1;
+
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+    document.getElementById('audioFileName').textContent = file.name;
+    document.getElementById('audioFileMeta').textContent = `${sizeMb} МБ • Декодирование...`;
+    appendLog(`Загружен файл: ${file.name} (${sizeMb} МБ)`);
+    appendLog('Декодирование аудиопотока для 3-полосного анализа спектра...', 'log-line-info');
+
+    try {
+      decodedBuffer = await CosmoAudioEngine.decodeFile(file);
+      waveBands = CosmoAudioEngine.analyzeThreeBandWaveform(decodedBuffer, 150);
+
+      const url = URL.createObjectURL(file);
+      hiddenAudioEl.src = url;
+      setPlayState(false);
+
+      const srKhz = (decodedBuffer.sampleRate / 1000).toFixed(1);
+      const chText = decodedBuffer.numberOfChannels === 1 ? 'Моно' : 'Стерео';
+      document.getElementById('audioFileMeta').textContent =
+        `${sizeMb} МБ • ${srKhz} kHz • ${chText} • ${CosmoAudioEngine.formatTime(decodedBuffer.duration)}`;
+      document.getElementById('playerTrackTitle').textContent = file.name.replace(/\.[^.]+$/, '');
+      document.getElementById('playerTrackSub').textContent = `${srKhz} kHz • ${chText} • Длительность ${CosmoAudioEngine.formatTime(decodedBuffer.duration)}`;
+
+      audioDropzone.classList.add('hidden');
+      waveformCard.classList.remove('hidden');
+      playerCard.classList.remove('hidden');
+
+      requestAnimationFrame(() => {
+        drawWaveform();
+        updateTrimUI();
+        updatePlayhead();
+      });
+
+      appendLog(`Успешно декодировано: ${decodedBuffer.sampleRate} Гц, ${chText}, ${CosmoAudioEngine.formatTime(decodedBuffer.duration)}`, 'log-line-ok');
+      appendLog('3-полосная волновая форма (Bass / Mid / High) построена.', 'log-line-ok');
+    } catch (err) {
+      appendLog('Ошибка декодирования аудиофайла!', 'log-line-err');
+      setStatus('error', 'Не удалось декодировать этот аудиофайл');
+    }
+  }
+
+  function resetAudioStudio() {
+    hiddenAudioEl.pause();
+    setPlayState(false);
+    currentFile = null;
+    decodedBuffer = null;
+    waveBands = null;
+    audioFileInput.value = '';
+    waveformCard.classList.add('hidden');
+    playerCard.classList.add('hidden');
+    audioDropzone.classList.remove('hidden');
+    document.getElementById('audioFileName').textContent = 'Аудиофайл не выбран';
+    document.getElementById('audioFileMeta').textContent = 'Загрузите MP3, WAV, OGG, M4A или FLAC до 40 МБ';
+    document.getElementById('audioSummaryBox').textContent = 'Загрузите аудиофайл слева для просмотра итоговой длительности и параметров рендера.';
+    appendLog('Рабочая область сброшена.');
+  }
+
+  audioFileInput.addEventListener('change', () => handleAudioFile(audioFileInput.files[0]));
+  audioDropzone.addEventListener('dragover', e => { e.preventDefault(); audioDropzone.classList.add('dragover'); });
+  audioDropzone.addEventListener('dragleave', () => audioDropzone.classList.remove('dragover'));
+  audioDropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    audioDropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+      audioFileInput.files = e.dataTransfer.files;
+      handleAudioFile(e.dataTransfer.files[0]);
+    }
+  });
+  window.addEventListener('resize', () => { if (waveBands) drawWaveform(); });
+
+  let statusTimer = null;
+  function setStatus(state, text) {
+    const banner = document.getElementById('downloadStatusBanner');
+    const spinner = document.getElementById('statusSpinner');
+    const checkIcon = document.getElementById('statusCheckIcon');
+    const errorIcon = document.getElementById('statusErrorIcon');
+    const textEl = document.getElementById('downloadStatusText');
+    const btn = document.getElementById('renderAudioBtn');
+    if (statusTimer) clearTimeout(statusTimer);
+
+    if (state === 'hidden') {
+      banner.classList.add('hidden');
+      banner.classList.remove('status-success', 'status-error');
+      btn.disabled = false;
+      btn.textContent = 'Обработать и скачать аудио';
+      return;
+    }
+
+    banner.classList.remove('hidden', 'status-success', 'status-error');
+    spinner.classList.add('hidden');
+    checkIcon.classList.add('hidden');
+    errorIcon.classList.add('hidden');
+    textEl.textContent = text;
+
+    if (state === 'loading') {
+      spinner.classList.remove('hidden');
+      btn.disabled = true;
+      btn.textContent = 'Рендеринг аудио...';
+    } else if (state === 'success') {
+      banner.classList.add('status-success');
+      checkIcon.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Обработать и скачать аудио';
+      statusTimer = setTimeout(() => banner.classList.add('hidden'), 5000);
+    } else if (state === 'error') {
+      banner.classList.add('status-error');
+      errorIcon.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Обработать и скачать аудио';
+      statusTimer = setTimeout(() => banner.classList.add('hidden'), 4500);
+    }
+  }
+
+  async function renderAndDownloadAudio() {
+    if (!currentFile || !decodedBuffer) {
+      setStatus('error', 'Вы не выбрали файл для обработки');
+      audioDropzone.classList.remove('dropzone-error');
+      void audioDropzone.offsetWidth;
+      audioDropzone.classList.add('dropzone-error');
+      appendLog('Ошибка: файл не выбран.', 'log-line-err');
+      return;
+    }
+
+    const dur = decodedBuffer.duration;
+    const startSec = trimStartRatio * dur;
+    const endSec = trimEndRatio * dur;
+    const { pitch, speed, volume } = getDspValues();
+    const outFmt = document.getElementById('audioOutFormat').value;
+    const baseName = currentFile.name.replace(/\.[^.]+$/, '') || 'cosmoconvert-audio';
+
+    setStatus('loading', 'Идет обработка аудиопотока и сборка файла...');
+    appendLog(`Старт рендера: обрезка ${CosmoAudioEngine.formatTime(startSec)}—${CosmoAudioEngine.formatTime(endSec)}, Pitch ${pitch}, Speed ${speed}x, Gain ${volume}%`, 'log-line-info');
+
+    try {
+      // Сначала проверяем лимит и списываем кредиты через сервер (и если выбран MP3 + установлен ffmpeg — кодируем на сервере)
+      const label = `Аудио-студия (Pitch ${pitch >= 0 ? '+' : ''}${pitch}, ${speed.toFixed(2)}x, ${volume}%) → ${outFmt.toUpperCase()}`;
+
+      if (outFmt === 'mp3') {
+        const fd = new FormData();
+        fd.append('media', currentFile);
+        fd.append('targetFormat', 'mp3');
+        fd.append('bitrate', '320k');
+        fd.append('startSec', startSec.toFixed(2));
+        fd.append('endSec', endSec.toFixed(2));
+        fd.append('pitchSemitones', String(pitch));
+        fd.append('speed', String(speed));
+        fd.append('volume', String(volume));
+        fd.append('cost', '2');
+        fd.append('actionTitle', label);
+
+        const res = await fetch('/api/media/ffmpeg-convert', { method: 'POST', body: fd });
+        if (!res.ok) {
+          const err = await res.json();
+          if (err.redirect) { window.location.href = err.redirect; return; }
+          setStatus('error', err.error || 'Ошибка обработки аудио');
+          appendLog(err.error || 'Ошибка сервера', 'log-line-err');
+          return;
+        }
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+          const rem = res.headers.get('X-Credits-Remaining');
+          if (rem && rem !== 'unlimited' && document.getElementById('headerCredits')) document.getElementById('headerCredits').textContent = rem;
+          const blob = await res.blob();
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `${baseName}-edited.mp3`;
+          a.click();
+          appendLog('FFmpeg экспорт в MP3 завершен успешно!', 'log-line-ok');
+          setStatus('success', 'Готово! Аудиофайл обработан и скачивается в браузере.');
+          return;
+        }
+        appendLog('FFmpeg не найден — кодирование MP3 (320 kbps) через встроенный браузерный движок...', 'log-line-info');
+      }
+
+      const renderedBuf = await CosmoAudioEngine.renderEditedAudioBuffer(decodedBuffer, {
+        startSec,
+        endSec,
+        pitchSemitones: pitch,
+        speed,
+        volumePercent: volume
+      });
+
+      const outBlob = outFmt === 'mp3'
+        ? await CosmoAudioEngine.encodeMp3(renderedBuf, 320)
+        : CosmoAudioEngine.encodeWav(renderedBuf);
+      const outExt = outFmt === 'mp3' ? 'mp3' : 'wav';
+
+      // Проверка кредитов, сохранение файла в историю и запись лога в БД
+      const logFd = new FormData();
+      logFd.append('fileName', currentFile.name);
+      logFd.append('actionLabel', `Аудио-студия (Pitch ${pitch >= 0 ? '+' : ''}${pitch}, ${speed.toFixed(2)}x, ${volume}%) → ${outExt.toUpperCase()}`);
+      logFd.append('cost', '2');
+      logFd.append('outExt', outExt);
+      logFd.append('outputName', `${baseName}-edited.${outExt}`);
+      <% if (user) { %>
+        logFd.append('resultFile', outBlob, `${baseName}-edited.${outExt}`);
+      <% } %>
+      const logRes = await fetch('/api/media/log-client-action', {
+        method: 'POST',
+        body: logFd
+      });
+      if (!logRes.ok) {
+        const err = await logRes.json();
+        if (err.redirect) { window.location.href = err.redirect; return; }
+        setStatus('error', err.error || 'Недостаточно кредитов');
+        appendLog(err.error || 'Отказано в операции', 'log-line-err');
+        return;
+      }
+      const logData = await logRes.json();
+      if (logData.creditsDisplay && logData.creditsDisplay !== 'unlimited' && document.getElementById('headerCredits')) {
+        document.getElementById('headerCredits').textContent = logData.creditsDisplay;
+      }
+
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(outBlob);
+      a.download = `${baseName}-edited.${outExt}`;
+      a.click();
+
+      appendLog(`Готово! Файл ${baseName}-edited.${outExt} (${(outBlob.size / (1024 * 1024)).toFixed(2)} МБ) отправлен на скачивание.`, 'log-line-ok');
+      setStatus('success', `Готово! Аудиофайл (${outExt.toUpperCase()}) обработан и скачивается в браузере.`);
+    } catch (err) {
+      appendLog('Сбой рендеринга: ' + err.message, 'log-line-err');
+      setStatus('error', 'Ошибка при рендеринге аудио');
+    }
+  }
+</script>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,332 @@
+<%- include('partials/header') %>
+
+<div class="page-title">
+  <h1>Извлечение аудио из видео</h1>
+  <p>Отделите чистую звуковую дорожку из роликов <b>MP4</b>, <b>WebM</b>, <b>MOV</b> и <b>MKV</b> с сохранением в MP3, WAV или OGG.</p>
+</div>
+
+<form id="videoExtractForm" class="editor-workspace" novalidate>
+  <!-- ЛЕВАЯ КОЛОНКА: ВИДЕО-ПЛЕЕР -->
+  <div class="viewport-column">
+    <div class="file-info-bar">
+      <div class="file-meta">
+        <div class="file-meta-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        </div>
+        <div style="min-width:0;">
+          <div class="file-meta-name" id="videoFileName">Видеофайл не выбран</div>
+          <div class="file-meta-dims" id="videoFileMeta">Загрузите MP4, WebM, MOV или MKV до 100 МБ</div>
+        </div>
+      </div>
+      <button type="button" class="icon-trash-btn" onclick="resetVideoFile()" title="Сбросить видео">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>
+
+    <div class="view-mode-bar">
+      <div class="section-tag">Предпросмотр видео</div>
+      <span id="videoDurBadge" style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted);">Длительность: —</span>
+    </div>
+
+    <div class="canvas-stage">
+      <label class="dropzone-overlay" id="videoDropzone">
+        <input type="file" id="videoFileInput" name="media" accept="video/*,.mp4,.webm,.mov,.mkv,.avi">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="1.8" style="margin-bottom:12px;"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        <div style="font-weight:700; font-size:15px; margin-bottom:6px;">Перетащите видеофайл сюда или <span style="color:var(--accent-bright); text-decoration:underline;">выберите с диска</span></div>
+        <div style="font-size:12px; color:var(--text-muted);">Поддерживаются MP4, WebM, MOV, MKV, AVI (до 100 МБ)</div>
+      </label>
+
+      <video id="videoPreview" class="video-preview-el hidden" controls></video>
+    </div>
+  </div>
+
+  <!-- ПРАВАЯ КОЛОНКА: ПАРАМЕТРЫ ИЗВЛЕЧЕНИЯ -->
+  <div class="inspector-column">
+    <% if (isAdmin) { %>
+      <div class="advanced-toggle-box admin-cost-box">
+        <span>Режим администратора</span>
+        <span>∞ (Безлимит)</span>
+      </div>
+    <% } else { %>
+      <div class="advanced-toggle-box">
+        <span>Стоимость извлечения</span>
+        <span>2 кр.</span>
+      </div>
+    <% } %>
+
+    <div class="section-tag">Параметры аудиодорожки</div>
+    <input type="hidden" id="videoOutFormat" value="mp3">
+    <input type="hidden" id="videoOutBitrate" value="320k">
+
+    <div class="control-group">
+      <div class="control-header"><span>Целевой формат аудио</span></div>
+      <div class="btn-matrix-3">
+        <button type="button" class="matrix-btn active" onclick="pickVideoOpt('videoOutFormat', 'mp3', this)">MP3</button>
+        <button type="button" class="matrix-btn" onclick="pickVideoOpt('videoOutFormat', 'wav', this)">WAV (PCM)</button>
+        <button type="button" class="matrix-btn" onclick="pickVideoOpt('videoOutFormat', 'ogg', this)">OGG</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="control-header"><span>Качество / Битрейт</span></div>
+      <div class="btn-matrix-3">
+        <button type="button" class="matrix-btn active" onclick="pickVideoOpt('videoOutBitrate', '320k', this)">320 kbps</button>
+        <button type="button" class="matrix-btn" onclick="pickVideoOpt('videoOutBitrate', '192k', this)">192 kbps</button>
+        <button type="button" class="matrix-btn" onclick="pickVideoOpt('videoOutBitrate', '128k', this)">128 kbps</button>
+      </div>
+    </div>
+
+    <div class="renderer-log-header" style="margin-top:4px;">
+      <span>&gt;_ EXTRACTOR LOG</span>
+      <button type="button" class="clear-log-btn" onclick="document.getElementById('videoLog').innerHTML='<div>&gt; Журнал очищен.</div>'">Очистить</button>
+    </div>
+    <div class="renderer-terminal" id="videoLog" style="height:160px;">
+      <div>&gt; Модуль извлечения аудио готов.</div>
+      <div class="log-line-info">&gt; Выберите видеофайл (MP4, WebM, MOV)...</div>
+    </div>
+
+    <button type="submit" class="generate-btn" id="extractAudioBtn" style="margin-top:auto;">Извлечь и скачать аудио</button>
+  </div>
+</form>
+
+<!-- ПЛАШКА СТАТУСА ПОД ОКНОМ -->
+<div id="downloadStatusBanner" class="download-status-banner hidden">
+  <div class="status-spinner hidden" id="statusSpinner"></div>
+  <svg id="statusCheckIcon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+  <svg id="statusErrorIcon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span id="downloadStatusText">Извлечение...</span>
+</div>
+
+<script src="/audio-engine.js"></script>
+<script>
+  const videoFileInput = document.getElementById('videoFileInput');
+  const videoDropzone = document.getElementById('videoDropzone');
+  const videoPreview = document.getElementById('videoPreview');
+  const videoLog = document.getElementById('videoLog');
+
+  function vLog(msg, cls = '') {
+    const d = document.createElement('div');
+    if (cls) d.className = cls;
+    d.textContent = '> ' + msg;
+    videoLog.appendChild(d);
+    videoLog.scrollTop = videoLog.scrollHeight;
+  }
+
+  function pickVideoOpt(id, val, btn) {
+    document.getElementById(id).value = val;
+    btn.parentElement.querySelectorAll('.matrix-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function handleVideoFile(file) {
+    if (!file) return;
+    setStatus('hidden');
+    videoDropzone.classList.remove('dropzone-error');
+
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+    document.getElementById('videoFileName').textContent = file.name;
+    document.getElementById('videoFileMeta').textContent = `${file.type || 'Видео'} • ${sizeMb} МБ`;
+
+    const url = URL.createObjectURL(file);
+    videoPreview.src = url;
+    videoPreview.onloadedmetadata = () => {
+      const dur = CosmoAudioEngine.formatTime(videoPreview.duration);
+      document.getElementById('videoDurBadge').textContent = `Длительность: ${dur} • ${videoPreview.videoWidth}×${videoPreview.videoHeight}`;
+      vLog(`Видео загружено: ${file.name} (${dur}, ${sizeMb} МБ)`, 'log-line-ok');
+    };
+
+    videoDropzone.classList.add('hidden');
+    videoPreview.classList.remove('hidden');
+  }
+
+  function resetVideoFile() {
+    videoPreview.pause();
+    videoPreview.src = '';
+    videoFileInput.value = '';
+    videoPreview.classList.add('hidden');
+    videoDropzone.classList.remove('hidden');
+    document.getElementById('videoFileName').textContent = 'Видеофайл не выбран';
+    document.getElementById('videoFileMeta').textContent = 'Загрузите MP4, WebM, MOV или MKV до 100 МБ';
+    document.getElementById('videoDurBadge').textContent = 'Длительность: —';
+  }
+
+  videoFileInput.addEventListener('change', () => handleVideoFile(videoFileInput.files[0]));
+  videoDropzone.addEventListener('dragover', e => { e.preventDefault(); videoDropzone.classList.add('dragover'); });
+  videoDropzone.addEventListener('dragleave', () => videoDropzone.classList.remove('dragover'));
+  videoDropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    videoDropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+      videoFileInput.files = e.dataTransfer.files;
+      handleVideoFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  let statusTimer = null;
+  function setStatus(state, text) {
+    const banner = document.getElementById('downloadStatusBanner');
+    const spinner = document.getElementById('statusSpinner');
+    const checkIcon = document.getElementById('statusCheckIcon');
+    const errorIcon = document.getElementById('statusErrorIcon');
+    const textEl = document.getElementById('downloadStatusText');
+    const btn = document.getElementById('extractAudioBtn');
+    if (statusTimer) clearTimeout(statusTimer);
+
+    if (state === 'hidden') {
+      banner.classList.add('hidden');
+      banner.classList.remove('status-success', 'status-error');
+      btn.disabled = false;
+      btn.textContent = 'Извлечь и скачать аудио';
+      return;
+    }
+
+    banner.classList.remove('hidden', 'status-success', 'status-error');
+    spinner.classList.add('hidden');
+    checkIcon.classList.add('hidden');
+    errorIcon.classList.add('hidden');
+    textEl.textContent = text;
+
+    if (state === 'loading') {
+      spinner.classList.remove('hidden');
+      btn.disabled = true;
+      btn.textContent = 'Извлечение аудио...';
+    } else if (state === 'success') {
+      banner.classList.add('status-success');
+      checkIcon.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Извлечь и скачать аудио';
+      statusTimer = setTimeout(() => banner.classList.add('hidden'), 5000);
+    } else if (state === 'error') {
+      banner.classList.add('status-error');
+      errorIcon.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Извлечь и скачать аудио';
+      statusTimer = setTimeout(() => banner.classList.add('hidden'), 4500);
+    }
+  }
+
+  document.getElementById('videoExtractForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = videoFileInput.files && videoFileInput.files[0];
+
+    if (!file) {
+      setStatus('error', 'Вы не выбрали файл для обработки');
+      videoDropzone.classList.remove('dropzone-error');
+      void videoDropzone.offsetWidth;
+      videoDropzone.classList.add('dropzone-error');
+      vLog('Ошибка: видеофайл не выбран.', 'log-line-err');
+      return;
+    }
+
+    const targetFmt = document.getElementById('videoOutFormat').value;
+    const bitrate = document.getElementById('videoOutBitrate').value;
+    const baseName = file.name.replace(/\.[^.]+$/, '') || 'extracted-audio';
+
+    const fd = new FormData();
+    fd.append('media', file);
+    fd.append('targetFormat', targetFmt);
+    fd.append('bitrate', bitrate);
+    fd.append('cost', '2');
+    fd.append('actionTitle', `Извлечение аудио → ${targetFmt.toUpperCase()} (${bitrate})`);
+
+    setStatus('loading', 'Извлечение аудиодорожки из видео...');
+    vLog(`Запуск демультиплексирования в ${targetFmt.toUpperCase()} (${bitrate})...`, 'log-line-info');
+
+    try {
+      const res = await fetch('/api/media/ffmpeg-convert', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json();
+        if (err.redirect) { window.location.href = err.redirect; return; }
+        setStatus('error', err.error || 'Ошибка извлечения аудио');
+        vLog(err.error || 'Ошибка сервера', 'log-line-err');
+        return;
+      }
+
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const info = await res.json();
+        if (info.useClientFallback) {
+          const kbps = info.bitrateKbps || parseInt(bitrate, 10) || 320;
+
+          if (targetFmt === 'ogg') {
+            vLog('Для формата OGG требуется FFmpeg (выполните npm install в папке проекта).', 'log-line-err');
+            setStatus('error', 'Для формата OGG установите встроенный FFmpeg командой "npm install", либо выберите MP3 / WAV.');
+            return;
+          }
+
+          vLog(targetFmt === 'mp3'
+            ? `Кодирование аудиодорожки через браузерный MP3-кодек (${kbps} кбит/с)...`
+            : 'Декодирование аудиодорожки в WAV PCM...', 'log-line-info');
+          setStatus('loading', targetFmt === 'mp3'
+            ? `Извлечение и кодирование аудио в MP3 (${kbps} кбит/с)...`
+            : 'Декодирование аудиодорожки из видео в WAV...');
+
+          const decoded = await CosmoAudioEngine.decodeFile(file);
+          let outBlob;
+          let outExt;
+          let logLabel;
+
+          if (targetFmt === 'mp3') {
+            outBlob = await CosmoAudioEngine.encodeMp3(decoded, kbps);
+            outExt = 'mp3';
+            logLabel = `Извлечение аудио из видео → MP3 (${kbps} kbps)`;
+          } else {
+            outBlob = CosmoAudioEngine.encodeWav(decoded);
+            outExt = 'wav';
+            logLabel = `Извлечение аудио из видео → WAV (PCM)`;
+          }
+
+          const logFd = new FormData();
+          logFd.append('fileName', file.name);
+          logFd.append('actionLabel', logLabel);
+          logFd.append('cost', '2');
+          logFd.append('outExt', outExt);
+          logFd.append('outputName', `${baseName}.${outExt}`);
+          <% if (user) { %>
+            logFd.append('resultFile', outBlob, `${baseName}.${outExt}`);
+          <% } %>
+          const logRes = await fetch('/api/media/log-client-action', {
+            method: 'POST',
+            body: logFd
+          });
+          if (!logRes.ok) {
+            const err = await logRes.json();
+            if (err.redirect) { window.location.href = err.redirect; return; }
+            setStatus('error', err.error || 'Ошибка списания кредитов');
+            return;
+          }
+          const logData = await logRes.json();
+          if (logData.creditsDisplay && logData.creditsDisplay !== 'unlimited' && document.getElementById('headerCredits')) {
+            document.getElementById('headerCredits').textContent = logData.creditsDisplay;
+          }
+
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(outBlob);
+          a.download = `${baseName}.${outExt}`;
+          a.click();
+
+          vLog(`Аудиодорожка извлечена: ${baseName}.${outExt} (${(outBlob.size / (1024 * 1024)).toFixed(2)} МБ)`, 'log-line-ok');
+          setStatus('success', `Готово! Аудиодорожка извлечена в ${outExt.toUpperCase()}${outExt === 'mp3' ? ` (${kbps} кбит/с)` : ''} и скачивается.`);
+          return;
+        }
+      }
+
+      const rem = res.headers.get('X-Credits-Remaining');
+      if (rem && rem !== 'unlimited' && document.getElementById('headerCredits')) document.getElementById('headerCredits').textContent = rem;
+      const ext = res.headers.get('X-Out-Ext') || targetFmt;
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${baseName}.${ext}`;
+      a.click();
+
+      vLog(`Успешно извлечено через FFmpeg: ${baseName}.${ext}`, 'log-line-ok');
+      setStatus('success', `Готово! Аудиодорожка (${ext.toUpperCase()}) скачивается в браузере.`);
+    } catch (err) {
+      vLog('Ошибка декодирования видеофайла: ' + err.message, 'log-line-err');
+      setStatus('error', 'Не удалось извлечь звук из видео (проверьте наличие звуковой дорожки)');
+    }
+  });
+</script>
+
+<%- include('partials/footer') %>

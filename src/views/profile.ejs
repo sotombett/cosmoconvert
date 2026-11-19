@@ -3,11 +3,20 @@
 <div class="profile-box">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
     <div>
-      <h2 style="font-size:22px;">Аккаунт: <%= user.email %></h2>
-      <p style="color:var(--text-muted); font-size:13px; margin-top:4px;">История всех выполненных операций за последние 30 дней</p>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <h2 style="font-size:22px; font-family:var(--font-mono);">Аккаунт: <%= user.email %></h2>
+        <% if (isAdmin) { %>
+          <span class="role-badge-admin">ADMIN</span>
+        <% } %>
+      </div>
+      <p style="color:var(--text-muted); font-size:13px; margin-top:4px;">История операций за последние 30 дней — нажмите на название файла, чтобы скачать его повторно из базы данных</p>
     </div>
-    <div style="display:flex; align-items:center; gap:10px;">
-      <div class="credits-pill">Доступно сегодня: <b><%= user.credits %> из <%= dailyLimit %> кр.</b></div>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <% if (isAdmin) { %>
+        <div class="credits-pill admin-pill">Статус: <b>Безлимит (∞)</b></div>
+      <% } else { %>
+        <div class="credits-pill">Доступно сегодня: <b><%= user.credits %> из <%= dailyLimit %> кр.</b></div>
+      <% } %>
       <a href="http://localhost:4000" target="_blank" class="btn-top outline">Панель сервера БД (:4000)</a>
     </div>
   </div>
@@ -15,27 +24,63 @@
   <table>
     <thead>
       <tr>
-        <th>Исходный файл</th>
+        <th>Файл (нажмите для скачивания)</th>
         <th>Выполненная операция</th>
-        <th>Списано</th>
+        <% if (!isAdmin) { %>
+          <th>Списано</th>
+        <% } %>
         <th>Дата и время</th>
+        <th style="width:52px; text-align:right;"></th>
       </tr>
     </thead>
     <tbody>
       <% if (logs.length === 0) { %>
-        <tr><td colspan="4" style="color:var(--text-muted);">У вас пока нет выполненных операций</td></tr>
+        <tr><td colspan="<%= isAdmin ? 4 : 5 %>" style="color:var(--text-muted);">У вас пока нет выполненных операций</td></tr>
       <% } else { %>
         <% logs.forEach(log => { %>
-          <tr>
-            <td><%= log.fileName %></td>
+          <tr id="history-row-<%= log.id %>">
+            <td>
+              <% if (log.canDownload) { %>
+                <a href="/api/history/<%= log.id %>/download" class="history-file-link" title="Скачать файл <%= log.outputName %> из базы данных">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span class="history-file-name"><%= log.outputName %></span>
+                  <% if (log.sizeText) { %>
+                    <span class="history-file-size">(<%= log.sizeText %>)</span>
+                  <% } %>
+                </a>
+                <% if (log.outputName !== log.fileName) { %>
+                  <div class="history-orig-sub">Исходник: <%= log.fileName %></div>
+                <% } %>
+              <% } else { %>
+                <span style="font-family:var(--font-mono); font-size:12px; color:var(--text-secondary);"><%= log.fileName %></span>
+                <div class="history-orig-sub">Старая запись (создана до сохранения файлов в БД)</div>
+              <% } %>
+            </td>
             <td><%= log.targetFormat %></td>
-            <td>-<%= log.cost %> кр.</td>
-            <td><%= new Date(log.createdAt).toLocaleString('ru-RU') %></td>
+            <% if (!isAdmin) { %>
+              <td style="font-family:var(--font-mono); color:var(--accent-cyan); font-weight:700;">-<%= log.cost %> кр.</td>
+            <% } %>
+            <td style="font-family:var(--font-mono); font-size:12px; color:var(--text-muted);"><%= new Date(log.createdAt).toLocaleString('ru-RU') %></td>
+            <td style="text-align:right;">
+              <button type="button" class="history-del-btn" onclick="deleteHistoryEntry(<%= log.id %>)" title="Удалить запись из истории">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </td>
           </tr>
         <% }) %>
       <% } %>
     </tbody>
   </table>
 </div>
+
+<script>
+  async function deleteHistoryEntry(id) {
+    const res = await fetch('/api/history/' + id + '/delete', { method: 'POST' });
+    if (res.ok) {
+      const row = document.getElementById('history-row-' + id);
+      if (row) row.remove();
+    }
+  }
+</script>
 
 <%- include('partials/footer') %>

@@ -1,0 +1,624 @@
+<%- include('partials/header') %>
+
+<div class="page-title">
+  <h1>Универсальный конвертер файлов</h1>
+  <p>Перевод <b>изображений</b>, <b>документов</b>, <b>аудио</b> и <b>видео</b> (включая MP4 в MP3 / WAV) в нужный формат.</p>
+</div>
+
+<!-- ВЫБОР ТИПА КОНВЕРТАЦИИ -->
+<div class="converter-mode-bar">
+  <button type="button" class="mode-switch-pill active" id="tab-image" onclick="switchConvMode('image')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+    Изображения
+  </button>
+  <button type="button" class="mode-switch-pill" id="tab-document" onclick="switchConvMode('document')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    Документы
+  </button>
+  <button type="button" class="mode-switch-pill" id="tab-media" onclick="switchConvMode('media')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+    Видео / Аудио (MP4 → MP3)
+  </button>
+</div>
+
+<form id="convertForm" class="editor-workspace" novalidate>
+  <input type="hidden" id="convModeField" value="image">
+
+  <!-- ЛЕВАЯ КОЛОНКА -->
+  <div class="viewport-column">
+    <div class="file-info-bar">
+      <div class="file-meta">
+        <div class="file-meta-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        </div>
+        <div>
+          <div class="file-meta-name" id="fileNameDisplay">Файл не выбран</div>
+          <div class="file-meta-dims" id="fileDimsDisplay">Поддержка изображений, документов, аудио и видео</div>
+        </div>
+      </div>
+      <button type="button" class="icon-trash-btn" onclick="resetConverterFile()" title="Сбросить файл">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>
+
+    <div class="view-mode-bar">
+      <div class="section-tag">Предпросмотр файла</div>
+      <span id="detectedTypeBadge" style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted);">Режим: Изображения</span>
+    </div>
+
+    <div class="canvas-stage">
+      <label class="dropzone-overlay" id="dropzone">
+        <input type="file" id="fileInput" name="file" accept="image/*,.pdf,.docx,.doc,.rtf,.odt,.txt,.md,.html,.htm,.csv,.json,.xml,audio/*,video/*">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="1.8" style="margin-bottom:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div style="font-weight:700; font-size:15px; margin-bottom:6px;">Перетащите любой файл сюда или <span style="color:var(--accent-bright); text-decoration:underline;">выберите с диска</span></div>
+        <div style="font-size:12px; color:var(--text-muted);" id="dropSubText">PNG, JPEG, WebP, AVIF, PDF, DOCX, DOC, RTF, TXT, MD, HTML, CSV, JSON, MP4, MP3, WAV до 40 МБ</div>
+      </label>
+
+      <div class="preview-container hidden" id="imagePreviewWrap">
+        <img id="previewImage" src="" alt="Предпросмотр">
+      </div>
+      <pre class="doc-preview-box hidden" id="docPreviewBox"></pre>
+      <iframe class="pdf-preview-frame hidden" id="pdfPreviewFrame" title="Предпросмотр PDF"></iframe>
+      <video class="video-preview-el hidden" id="videoPreviewEl" controls></video>
+      <div class="hidden" id="audioPreviewWrap" style="width:100%; max-width:460px; text-align:center;">
+        <div style="font-family:var(--font-mono); font-size:13px; margin-bottom:14px; color:var(--accent-bright);" id="audioPreviewLabel">Аудиофайл готов к конвертации</div>
+        <audio id="audioPreviewEl" controls style="width:100%;"></audio>
+      </div>
+    </div>
+  </div>
+
+  <!-- ПРАВАЯ КОЛОНКА ПАРАМЕТРОВ -->
+  <div class="inspector-column">
+    <% if (isAdmin) { %>
+      <div class="advanced-toggle-box admin-cost-box" id="costBox" data-base-cost="0" data-is-admin="true">
+        <div>
+          <div>Режим администратора</div>
+          <div id="costSubNote" class="cost-subnote hidden"></div>
+        </div>
+        <span id="costValueDisplay">∞ (Безлимит)</span>
+      </div>
+    <% } else { %>
+      <div class="advanced-toggle-box" id="costBox" data-base-cost="1" data-is-admin="false">
+        <div>
+          <div>Стоимость операции</div>
+          <div id="costSubNote" class="cost-subnote hidden">+1 кр. за удаление метаданных EXIF</div>
+        </div>
+        <span id="costValueDisplay">1 кр.</span>
+      </div>
+    <% } %>
+
+    <!-- 1. НАСТРОЙКИ ИЗОБРАЖЕНИЙ -->
+    <div id="panel-image" style="display:flex; flex-direction:column; gap:16px;">
+      <div class="section-tag">Конвертация изображений</div>
+      <input type="hidden" id="imgFormatField" value="webp">
+      <input type="hidden" id="imgQualityField" value="90">
+
+      <div class="control-group">
+        <div class="control-header"><span>Целевой формат</span></div>
+        <div class="btn-matrix-3">
+          <button type="button" class="matrix-btn active" onclick="pickImgFormat('webp', this)">WebP</button>
+          <button type="button" class="matrix-btn" onclick="pickImgFormat('png', this)">PNG</button>
+          <button type="button" class="matrix-btn" onclick="pickImgFormat('jpeg', this)">JPEG</button>
+          <button type="button" class="matrix-btn" onclick="pickImgFormat('avif', this)">AVIF</button>
+          <button type="button" class="matrix-btn" style="grid-column: span 2;" onclick="pickImgFormat('ico', this)">ICO (Значок Windows)</button>
+        </div>
+      </div>
+
+      <div class="control-group" id="imgQualityGroup">
+        <div class="control-header"><span>Качество и степень сжатия</span></div>
+        <div class="btn-matrix-3">
+          <button type="button" class="matrix-btn" onclick="pickBtn('imgQualityField', '100', this)">100% Макс.</button>
+          <button type="button" class="matrix-btn active" onclick="pickBtn('imgQualityField', '90', this)">90% Оптим.</button>
+          <button type="button" class="matrix-btn" onclick="pickBtn('imgQualityField', '75', this)">75% Сжатие</button>
+        </div>
+      </div>
+
+      <div class="upscale-info-box hidden" id="icoInfoNote">
+        Формат <b>ICO</b> автоматически собирает многоразмерную иконку Windows (<b>256×256, 64×64, 32×32 и 16×16 px</b>) с сохранением прозрачности и пропорций.
+      </div>
+    </div>
+
+    <!-- 2. НАСТРОЙКИ ДОКУМЕНТОВ -->
+    <div id="panel-document" class="hidden" style="display:flex; flex-direction:column; gap:16px;">
+      <div class="section-tag">Конвертация документов</div>
+      <input type="hidden" id="docFormatField" value="pdf">
+
+      <div class="control-group">
+        <div class="control-header"><span>Целевой формат документа</span></div>
+        <div class="btn-matrix-4">
+          <button type="button" class="matrix-btn active" onclick="pickBtn('docFormatField', 'pdf', this)">PDF</button>
+          <button type="button" class="matrix-btn" onclick="pickBtn('docFormatField', 'docx', this)">DOCX</button>
+          <button type="button" class="matrix-btn" onclick="pickBtn('docFormatField', 'doc', this)">DOC</button>
+          <button type="button" class="matrix-btn" onclick="pickBtn('docFormatField', 'html', this)">HTML</button>
+          <button type="button" class="matrix-btn" onclick="pickBtn('docFormatField', 'txt', this)">TXT</button>
+          <button type="button" class="matrix-btn" onclick="pickBtn('docFormatField', 'md', this)">MD</button>
+          <button type="button" class="matrix-btn" onclick="pickBtn('docFormatField', 'json', this)">JSON</button>
+          <button type="button" class="matrix-btn" onclick="pickBtn('docFormatField', 'csv', this)">CSV</button>
+        </div>
+      </div>
+
+      <div class="upscale-info-box">
+        Поддерживаются исходные форматы <b>PDF, DOCX, DOC, RTF, ODT, TXT, MD, HTML, CSV, JSON, XML</b> с полной поддержкой кириллицы UTF-8.
+      </div>
+    </div>
+
+    <!-- 3. НАСТРОЙКИ ВИДЕО / АУДИО -->
+    <div id="panel-media" class="hidden" style="display:flex; flex-direction:column; gap:16px;">
+      <div class="section-tag">Конвертация видео и аудио</div>
+      <input type="hidden" id="mediaFormatField" value="mp3">
+      <input type="hidden" id="mediaBitrateField" value="320k">
+
+      <div class="control-group">
+        <div class="control-header"><span>Выходной аудиоформат</span></div>
+        <div class="btn-matrix-3">
+          <button type="button" class="matrix-btn active" onclick="pickBtn('mediaFormatField', 'mp3', this)">MP3</button>
+          <button type="button" class="matrix-btn" onclick="pickBtn('mediaFormatField', 'wav', this)">WAV (PCM)</button>
+          <button type="button" class="matrix-btn" onclick="pickBtn('mediaFormatField', 'ogg', this)">OGG</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="control-header"><span>Битрейт / Качество</span></div>
+        <div class="btn-matrix-3">
+          <button type="button" class="matrix-btn active" onclick="pickBtn('mediaBitrateField', '320k', this)">320 kbps</button>
+          <button type="button" class="matrix-btn" onclick="pickBtn('mediaBitrateField', '192k', this)">192 kbps</button>
+          <button type="button" class="matrix-btn" onclick="pickBtn('mediaBitrateField', '128k', this)">128 kbps</button>
+        </div>
+      </div>
+
+      <div class="upscale-info-box">
+        Переведите <b>MP4 / WebM / MOV</b> в <b>MP3 / WAV</b> или перекодируйте аудиофайлы. Поддерживается точное кодирование в <b>MP3 (128/192/320 kbps)</b> и <b>WAV</b>. Для формата <b>OGG</b> установите встроенный FFmpeg командой <b>npm install</b>.
+      </div>
+    </div>
+
+    <!-- EXIF ОПЦИЯ (ТОЛЬКО ДЛЯ ИЗОБРАЖЕНИЙ) -->
+    <div id="exifOptionWrap" style="margin-top:auto;">
+      <% if (user) { %>
+        <div class="bottom-feature-box">
+          <span class="locked-label">Стереть метаданные EXIF<%= isAdmin ? "" : " (+1 кр.)" %></span>
+          <label class="switch-wrap">
+            <input type="checkbox" id="stripExifCheck" onchange="updateConvCost()">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+      <% } else { %>
+        <div class="bottom-feature-box locked" title="Зарегистрируйтесь, чтобы удалять метаданные при конвертации">
+          <span class="locked-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Стереть метаданные EXIF
+          </span>
+          <a href="/register" class="locked-badge">Только с аккаунтом</a>
+        </div>
+      <% } %>
+    </div>
+
+    <button type="submit" class="generate-btn" id="submitActionBtn">Обработать и скачать файл</button>
+  </div>
+</form>
+
+<!-- ПЛАШКА СТАТУСА -->
+<div id="downloadStatusBanner" class="download-status-banner hidden">
+  <div class="status-spinner hidden" id="statusSpinner"></div>
+  <svg id="statusCheckIcon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+  <svg id="statusErrorIcon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span id="downloadStatusText">Обработка...</span>
+</div>
+
+<script src="/audio-engine.js"></script>
+<script>
+  const fileInput = document.getElementById('fileInput');
+  const dropzone = document.getElementById('dropzone');
+  const fileNameDisplay = document.getElementById('fileNameDisplay');
+  const fileDimsDisplay = document.getElementById('fileDimsDisplay');
+  const detectedTypeBadge = document.getElementById('detectedTypeBadge');
+  const convModeField = document.getElementById('convModeField');
+
+  const imgWrap = document.getElementById('imagePreviewWrap');
+  const previewImage = document.getElementById('previewImage');
+  const docPreviewBox = document.getElementById('docPreviewBox');
+  const pdfPreviewFrame = document.getElementById('pdfPreviewFrame');
+  const videoPreviewEl = document.getElementById('videoPreviewEl');
+  const audioPreviewWrap = document.getElementById('audioPreviewWrap');
+  const audioPreviewEl = document.getElementById('audioPreviewEl');
+
+  function pickBtn(fieldId, val, btn) {
+    document.getElementById(fieldId).value = val;
+    btn.parentElement.querySelectorAll('.matrix-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function pickImgFormat(fmt, btn) {
+    pickBtn('imgFormatField', fmt, btn);
+    const isIco = fmt === 'ico';
+    const qGroup = document.getElementById('imgQualityGroup');
+    const icoNote = document.getElementById('icoInfoNote');
+    if (qGroup) qGroup.classList.toggle('hidden', isIco);
+    if (icoNote) icoNote.classList.toggle('hidden', !isIco);
+  }
+
+  function switchConvMode(mode, keepFile = false) {
+    const modeChanged = convModeField.value !== mode;
+    convModeField.value = mode;
+
+    // Сбрасываем выбранный файл при ручном переключении вкладки
+    if (modeChanged && !keepFile) {
+      resetConverterFile();
+    }
+
+    ['image', 'document', 'media'].forEach(m => {
+      document.getElementById('tab-' + m).classList.toggle('active', m === mode);
+      document.getElementById('panel-' + m).classList.toggle('hidden', m !== mode);
+    });
+    document.getElementById('exifOptionWrap').classList.toggle('hidden', mode !== 'image');
+
+    const modeMeta = {
+      image: {
+        badge: 'Режим: Изображения',
+        accept: 'image/*,.png,.jpg,.jpeg,.webp,.avif,.gif,.bmp,.tiff',
+        sub: 'PNG, JPEG, WebP, AVIF, GIF, BMP, TIFF (до 40 МБ)',
+        emptyHint: 'Выберите изображение для конвертации'
+      },
+      document: {
+        badge: 'Режим: Документы',
+        accept: '.pdf,.docx,.doc,.rtf,.odt,.txt,.md,.html,.htm,.csv,.json,.xml,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        sub: 'PDF, DOCX, DOC, RTF, ODT, TXT, MD, HTML, CSV, JSON, XML (до 40 МБ)',
+        emptyHint: 'Выберите документ (PDF, DOCX, DOC, TXT, HTML...) для конвертации'
+      },
+      media: {
+        badge: 'Режим: Видео и Аудио',
+        accept: 'audio/*,video/*,.mp4,.webm,.mov,.mkv,.avi,.mp3,.wav,.ogg,.m4a,.flac',
+        sub: 'MP4, WebM, MOV, MKV, MP3, WAV, OGG, M4A, FLAC (до 100 МБ)',
+        emptyHint: 'Выберите аудио- или видеофайл для конвертации'
+      }
+    };
+
+    const meta = modeMeta[mode];
+    detectedTypeBadge.textContent = meta.badge;
+    fileInput.setAttribute('accept', meta.accept);
+    const subEl = document.getElementById('dropSubText');
+    if (subEl) subEl.textContent = meta.sub;
+    if (!fileInput.files || !fileInput.files.length) {
+      fileDimsDisplay.textContent = meta.emptyHint;
+    }
+
+    updateConvCost();
+  }
+
+  function updateConvCost() {
+    const costBox = document.getElementById('costBox');
+    if (costBox && costBox.dataset.isAdmin === 'true') {
+      document.getElementById('costValueDisplay').textContent = '∞ (Безлимит)';
+      document.getElementById('costSubNote').classList.add('hidden');
+      return;
+    }
+    const mode = convModeField.value;
+    const stripCheck = document.getElementById('stripExifCheck');
+    const isStripping = mode === 'image' && stripCheck && stripCheck.checked;
+    const total = 1 + (isStripping ? 1 : 0);
+
+    document.getElementById('costValueDisplay').textContent = `${total} кр.`;
+    document.getElementById('costSubNote').classList.toggle('hidden', !isStripping);
+    costBox.classList.toggle('has-extra-cost', isStripping);
+  }
+
+  function hideAllPreviews() {
+    imgWrap.classList.add('hidden');
+    docPreviewBox.classList.add('hidden');
+    if (pdfPreviewFrame) pdfPreviewFrame.classList.add('hidden');
+    videoPreviewEl.classList.add('hidden');
+    audioPreviewWrap.classList.add('hidden');
+    videoPreviewEl.pause();
+    audioPreviewEl.pause();
+  }
+
+  function resetConverterFile() {
+    fileInput.value = '';
+    hideAllPreviews();
+    previewImage.src = '';
+    docPreviewBox.textContent = '';
+    if (pdfPreviewFrame) pdfPreviewFrame.removeAttribute('src');
+    videoPreviewEl.removeAttribute('src');
+    videoPreviewEl.load();
+    audioPreviewEl.removeAttribute('src');
+    audioPreviewEl.load();
+    dropzone.classList.remove('hidden', 'dropzone-error');
+    setStatus('hidden');
+    fileNameDisplay.textContent = 'Файл не выбран';
+    fileDimsDisplay.textContent = 'Поддержка изображений, документов, аудио и видео';
+  }
+
+  function detectCategoryFromFile(file) {
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (file.type.startsWith('image/') || ['png','jpg','jpeg','webp','avif','gif','bmp','tiff'].includes(ext)) {
+      return 'image';
+    }
+    if (file.type.startsWith('video/') || file.type.startsWith('audio/') || ['mp4','webm','mov','mkv','avi','mp3','wav','ogg','m4a','flac'].includes(ext)) {
+      return 'media';
+    }
+    return 'document';
+  }
+
+  function handleConverterFile(file) {
+    if (!file) return;
+    setStatus('hidden');
+    dropzone.classList.remove('dropzone-error');
+    hideAllPreviews();
+
+    const detected = detectCategoryFromFile(file);
+    switchConvMode(detected, true);
+
+    fileNameDisplay.textContent = file.name;
+    const sizeText = file.size > 1024 * 1024
+      ? `${(file.size / (1024 * 1024)).toFixed(2)} МБ`
+      : `${(file.size / 1024).toFixed(1)} КБ`;
+    fileDimsDisplay.textContent = `${file.type || 'Файл'} • ${sizeText}`;
+    dropzone.classList.add('hidden');
+
+    const url = URL.createObjectURL(file);
+    if (detected === 'image') {
+      previewImage.src = url;
+      previewImage.onload = () => {
+        fileDimsDisplay.textContent = `${previewImage.naturalWidth} × ${previewImage.naturalHeight} px • ${sizeText}`;
+      };
+      imgWrap.classList.remove('hidden');
+    } else if (detected === 'document') {
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      if (ext === 'pdf') {
+        pdfPreviewFrame.src = url;
+        pdfPreviewFrame.classList.remove('hidden');
+      } else if (['docx', 'doc', 'rtf', 'odt'].includes(ext)) {
+        docPreviewBox.textContent = 'Извлечение текста документа для предпросмотра...';
+        docPreviewBox.classList.remove('hidden');
+        const pfd = new FormData();
+        pfd.append('document', file);
+        fetch('/api/document/preview', { method: 'POST', body: pfd })
+          .then(r => r.json())
+          .then(d => { docPreviewBox.textContent = d.text || 'Документ готов к конвертации.'; })
+          .catch(() => { docPreviewBox.textContent = `Файл ${file.name} (${sizeText}) готов к конвертации.`; });
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const txt = String(reader.result || '');
+          docPreviewBox.textContent = txt.slice(0, 12000) + (txt.length > 12000 ? '\n\n... (показано начало документа)' : '');
+          docPreviewBox.classList.remove('hidden');
+        };
+        reader.readAsText(file);
+      }
+    } else if (file.type.startsWith('video/') || /\.(mp4|webm|mov|mkv|avi)$/i.test(file.name)) {
+      videoPreviewEl.src = url;
+      videoPreviewEl.classList.remove('hidden');
+    } else {
+      audioPreviewEl.src = url;
+      document.getElementById('audioPreviewLabel').textContent = `Аудиофайл: ${file.name} (${sizeText})`;
+      audioPreviewWrap.classList.remove('hidden');
+    }
+  }
+
+  fileInput.addEventListener('change', () => handleConverterFile(fileInput.files[0]));
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+      fileInput.files = e.dataTransfer.files;
+      handleConverterFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  let statusTimer = null;
+  function setStatus(state, text) {
+    const banner = document.getElementById('downloadStatusBanner');
+    const spinner = document.getElementById('statusSpinner');
+    const checkIcon = document.getElementById('statusCheckIcon');
+    const errorIcon = document.getElementById('statusErrorIcon');
+    const textEl = document.getElementById('downloadStatusText');
+    const submitBtn = document.getElementById('submitActionBtn');
+    if (statusTimer) clearTimeout(statusTimer);
+
+    if (state === 'hidden') {
+      banner.classList.add('hidden');
+      banner.classList.remove('status-success', 'status-error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Обработать и скачать файл';
+      return;
+    }
+
+    banner.classList.remove('hidden', 'status-success', 'status-error');
+    spinner.classList.add('hidden');
+    checkIcon.classList.add('hidden');
+    errorIcon.classList.add('hidden');
+    textEl.textContent = text;
+
+    if (state === 'loading') {
+      spinner.classList.remove('hidden');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Конвертация...';
+    } else if (state === 'success') {
+      banner.classList.add('status-success');
+      checkIcon.classList.remove('hidden');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Обработать и скачать файл';
+      statusTimer = setTimeout(() => banner.classList.add('hidden'), 5000);
+    } else if (state === 'error') {
+      banner.classList.add('status-error');
+      errorIcon.classList.remove('hidden');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Обработать и скачать файл';
+      statusTimer = setTimeout(() => banner.classList.add('hidden'), 4500);
+    }
+  }
+
+  function triggerDownload(blob, filename) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+  }
+
+  document.getElementById('convertForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = fileInput.files && fileInput.files[0];
+
+    if (!file) {
+      setStatus('error', 'Вы не выбрали файл для обработки');
+      dropzone.classList.remove('dropzone-error');
+      void dropzone.offsetWidth;
+      dropzone.classList.add('dropzone-error');
+      return;
+    }
+
+    const mode = convModeField.value;
+    const baseName = file.name.replace(/\.[^.]+$/, '') || 'cosmoconvert-result';
+
+    // 1. Конвертация ИЗОБРАЖЕНИЙ
+    if (mode === 'image') {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('category', 'convert');
+      formData.append('format', document.getElementById('imgFormatField').value);
+      formData.append('quality', document.getElementById('imgQualityField').value);
+      const stripCheck = document.getElementById('stripExifCheck');
+      formData.append('stripExif', stripCheck ? String(stripCheck.checked) : 'false');
+
+      setStatus('loading', 'Идет конвертация изображения...');
+      try {
+        const res = await fetch('/api/process', { method: 'POST', body: formData });
+        if (!res.ok) {
+          const err = await res.json();
+          if (err.redirect) { window.location.href = err.redirect; return; }
+          setStatus('error', err.error || 'Ошибка конвертации изображения');
+          return;
+        }
+        const rem = res.headers.get('X-Credits-Remaining');
+        if (rem && rem !== 'unlimited' && document.getElementById('headerCredits')) document.getElementById('headerCredits').textContent = rem;
+        const ext = res.headers.get('X-Out-Ext') || 'webp';
+        triggerDownload(await res.blob(), `${baseName}.${ext}`);
+        setStatus('success', 'Готово! Изображение сконвертировано и скачивается.');
+      } catch {
+        setStatus('error', 'Сбой соединения при конвертации');
+      }
+      return;
+    }
+
+    // 2. Конвертация ДОКУМЕНТОВ
+    if (mode === 'document') {
+      const formData = new FormData();
+      formData.append('document', file);
+      formData.append('targetFormat', document.getElementById('docFormatField').value);
+
+      setStatus('loading', 'Идет конвертация документа...');
+      try {
+        const res = await fetch('/api/convert-document', { method: 'POST', body: formData });
+        if (!res.ok) {
+          const err = await res.json();
+          if (err.redirect) { window.location.href = err.redirect; return; }
+          setStatus('error', err.error || 'Ошибка конвертации документа');
+          return;
+        }
+        const rem = res.headers.get('X-Credits-Remaining');
+        if (rem && rem !== 'unlimited' && document.getElementById('headerCredits')) document.getElementById('headerCredits').textContent = rem;
+        const ext = res.headers.get('X-Out-Ext') || 'html';
+        triggerDownload(await res.blob(), `${baseName}.${ext}`);
+        setStatus('success', `Готово! Документ переведен в ${ext.toUpperCase()} и скачивается.`);
+      } catch {
+        setStatus('error', 'Сбой соединения при конвертации документа');
+      }
+      return;
+    }
+
+    // 3. Конвертация ВИДЕО / АУДИО (MP4 -> MP3 / WAV / OGG)
+    if (mode === 'media') {
+      const targetFmt = document.getElementById('mediaFormatField').value;
+      const bitrate = document.getElementById('mediaBitrateField').value;
+      const formData = new FormData();
+      formData.append('media', file);
+      formData.append('targetFormat', targetFmt);
+      formData.append('bitrate', bitrate);
+      formData.append('cost', '1');
+      formData.append('actionTitle', `Конвертация медиа → ${targetFmt.toUpperCase()}`);
+
+      setStatus('loading', 'Идет конвертация аудио/видео потока...');
+      try {
+        const res = await fetch('/api/media/ffmpeg-convert', { method: 'POST', body: formData });
+        const contentType = res.headers.get('content-type') || '';
+
+        if (!res.ok) {
+          const err = await res.json();
+          if (err.redirect) { window.location.href = err.redirect; return; }
+          setStatus('error', err.error || 'Ошибка конвертации медиа');
+          return;
+        }
+
+        if (contentType.includes('application/json')) {
+          const info = await res.json();
+          if (info.useClientFallback) {
+            const kbps = info.bitrateKbps || parseInt(bitrate, 10) || 128;
+
+            if (targetFmt === 'ogg') {
+              setStatus('error', 'Для формата OGG выполните команду "npm install" (установится встроенный FFmpeg), либо выберите MP3 или WAV.');
+              return;
+            }
+
+            setStatus('loading', targetFmt === 'mp3'
+              ? `Декодирование и кодирование в MP3 (${kbps} кбит/с)...`
+              : 'Декодирование аудиодорожки в WAV (PCM)...');
+
+            const decoded = await window.CosmoAudioEngine.decodeFile(file);
+            let outBlob;
+            let outExt;
+            let logLabel;
+
+            if (targetFmt === 'mp3') {
+              outBlob = await window.CosmoAudioEngine.encodeMp3(decoded, kbps);
+              outExt = 'mp3';
+              logLabel = `Конвертация медиа → MP3 (${kbps} kbps)`;
+            } else {
+              outBlob = window.CosmoAudioEngine.encodeWav(decoded);
+              outExt = 'wav';
+              logLabel = `Конвертация медиа → WAV (PCM)`;
+            }
+
+            const logFd = new FormData();
+            logFd.append('fileName', file.name);
+            logFd.append('actionLabel', logLabel);
+            logFd.append('cost', '1');
+            logFd.append('outExt', outExt);
+            logFd.append('outputName', `${baseName}.${outExt}`);
+            <% if (user) { %>
+              logFd.append('resultFile', outBlob, `${baseName}.${outExt}`);
+            <% } %>
+            const logRes = await fetch('/api/media/log-client-action', {
+              method: 'POST',
+              body: logFd
+            });
+            if (!logRes.ok) {
+              const err = await logRes.json();
+              if (err.redirect) { window.location.href = err.redirect; return; }
+              setStatus('error', err.error || 'Ошибка списания лимита');
+              return;
+            }
+            const logData = await logRes.json();
+            if (logData.creditsDisplay && logData.creditsDisplay !== 'unlimited' && document.getElementById('headerCredits')) {
+              document.getElementById('headerCredits').textContent = logData.creditsDisplay;
+            }
+
+            triggerDownload(outBlob, `${baseName}.${outExt}`);
+            setStatus('success', `Готово! Файл сконвертирован в ${outExt.toUpperCase()}${outExt === 'mp3' ? ` (${kbps} кбит/с)` : ''} и скачивается.`);
+            return;
+          }
+        }
+
+        const rem = res.headers.get('X-Credits-Remaining');
+        if (rem && rem !== 'unlimited' && document.getElementById('headerCredits')) document.getElementById('headerCredits').textContent = rem;
+        const ext = res.headers.get('X-Out-Ext') || targetFmt;
+        triggerDownload(await res.blob(), `${baseName}.${ext}`);
+        setStatus('success', `Готово! Медиафайл сконвертирован в ${ext.toUpperCase()} и скачивается.`);
+      } catch (err) {
+        setStatus('error', 'Не удалось декодировать выбранный медиафайл (проверьте наличие аудиодорожки)');
+      }
+    }
+  });
+</script>
+
+<%- include('partials/footer') %>

@@ -1,2 +1,4 @@
 node_modules/
 *.log
+storage/history/*
+!storage/history/.gitkeep

@@ -1,0 +1,333 @@
+<%- include('partials/header') %>
+
+<div class="page-title">
+  <h1>Очистка метаданных</h1>
+  <p>Удаление скрытых тегов <b>EXIF и GPS</b> из изображений, <b>ID3 / контейнерных тегов</b> из аудио и видео, а также <b>meta-тегов и комментариев</b> из документов.</p>
+</div>
+
+<form id="metadataForm" class="editor-workspace" novalidate>
+  <!-- ЛЕВАЯ КОЛОНКА: ЗАГРУЗКА И ПРЕДПРОСМОТР -->
+  <div class="viewport-column">
+    <div class="file-info-bar">
+      <div class="file-meta">
+        <div class="file-meta-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <div style="min-width:0;">
+          <div class="file-meta-name" id="metaFileName">Файл не выбран</div>
+          <div class="file-meta-dims" id="metaFileDims">Изображения, аудио, видео и документы до 100 МБ</div>
+        </div>
+      </div>
+      <button type="button" class="icon-trash-btn" onclick="resetMetaFile()" title="Сбросить файл">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>
+
+    <div class="view-mode-bar">
+      <div class="section-tag">Предпросмотр файла</div>
+      <span id="metaKindBadge" style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted);">Тип: не определён</span>
+    </div>
+
+    <div class="canvas-stage">
+      <label class="dropzone-overlay" id="metaDropzone">
+        <input type="file" id="metaFileInput" name="file" accept="image/*,audio/*,video/*,.pdf,.docx,.doc,.rtf,.html,.htm,.xml,.json,.txt,.md,.csv">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="1.8" style="margin-bottom:12px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <div style="font-weight:700; font-size:15px; margin-bottom:6px;">Перетащите любой файл сюда или <span style="color:var(--accent-bright); text-decoration:underline;">выберите с диска</span></div>
+        <div style="font-size:12px; color:var(--text-muted);">PNG, JPEG, WebP, AVIF • MP3, WAV, MP4, WebM, MOV • PDF, DOCX, HTML, XML, JSON, TXT, MD</div>
+      </label>
+
+      <div class="preview-container hidden" id="metaImgWrap">
+        <img id="metaPreviewImg" src="" alt="Предпросмотр">
+      </div>
+      <pre class="doc-preview-box hidden" id="metaDocBox"></pre>
+      <iframe class="pdf-preview-frame hidden" id="metaPdfFrame" title="Предпросмотр PDF"></iframe>
+      <video class="video-preview-el hidden" id="metaVideoEl" controls></video>
+      <div class="hidden" id="metaAudioWrap" style="width:100%; max-width:460px; text-align:center;">
+        <div style="font-family:var(--font-mono); font-size:13px; margin-bottom:14px; color:var(--accent-bright);" id="metaAudioLabel">Аудиофайл готов к очистке тегов</div>
+        <audio id="metaAudioEl" controls style="width:100%;"></audio>
+      </div>
+    </div>
+  </div>
+
+  <!-- ПРАВАЯ КОЛОНКА: ИНСПЕКТОР МЕТАДАННЫХ -->
+  <div class="inspector-column">
+    <% if (isAdmin) { %>
+      <div class="advanced-toggle-box admin-cost-box">
+        <span>Режим администратора</span>
+        <span>∞ (Безлимит)</span>
+      </div>
+    <% } else { %>
+      <div class="advanced-toggle-box">
+        <span>Стоимость очистки</span>
+        <span>1 кр.</span>
+      </div>
+    <% } %>
+
+    <div class="section-tag">Параметры очистки</div>
+    <input type="hidden" name="cleanMode" id="cleanModeField" value="all">
+
+    <div class="control-group" id="imageCleanOptions">
+      <div class="control-header"><span>Режим удаления тегов</span></div>
+      <div class="btn-matrix-2" style="grid-template-columns: 1fr;">
+        <button type="button" class="matrix-btn active" onclick="pickCleanMode('all', this)">Полная очистка всех метаданных и тегов</button>
+        <button type="button" class="matrix-btn" id="keepIccBtn" onclick="pickCleanMode('keep_icm', this)">Стереть EXIF/GPS, оставить цветовой профиль (для фото)</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="control-header"><span>Анализ обнаруженных данных</span></div>
+      <div class="upscale-info-box" id="metaInspectBox">
+        Загрузите изображение, аудио, видео или документ слева — система автоматически просканирует встроенные метаданные перед очисткой.
+      </div>
+    </div>
+
+    <div class="upscale-info-box" style="margin-top:auto;">
+      <div><b>Поддерживаемые типы очистки:</b></div>
+      <div>• Фото: EXIF, GPS-локация, камера, XMP, IPTC</div>
+      <div>• Аудио/Видео: ID3v1/v2, обложки, RIFF INFO, теги контейнера</div>
+      <div>• Документы: HTML/XML meta-теги, комментарии, BOM, мета-поля JSON</div>
+    </div>
+
+    <% if (!user) { %>
+      <a href="/register?reason=locked" class="generate-btn disabled-lock">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Доступно после регистрации
+      </a>
+    <% } else { %>
+      <button type="submit" class="generate-btn" id="cleanMetaBtn">Очистить метаданные и скачать</button>
+    <% } %>
+  </div>
+</form>
+
+<!-- ПЛАШКА СТАТУСА ПОД ОКНОМ -->
+<div id="downloadStatusBanner" class="download-status-banner hidden">
+  <div class="status-spinner hidden" id="statusSpinner"></div>
+  <svg id="statusCheckIcon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+  <svg id="statusErrorIcon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span id="downloadStatusText">Очистка...</span>
+</div>
+
+<script>
+  const metaFileInput = document.getElementById('metaFileInput');
+  const metaDropzone = document.getElementById('metaDropzone');
+  const metaImgWrap = document.getElementById('metaImgWrap');
+  const metaPreviewImg = document.getElementById('metaPreviewImg');
+  const metaDocBox = document.getElementById('metaDocBox');
+  const metaPdfFrame = document.getElementById('metaPdfFrame');
+  const metaVideoEl = document.getElementById('metaVideoEl');
+  const metaAudioWrap = document.getElementById('metaAudioWrap');
+  const metaAudioEl = document.getElementById('metaAudioEl');
+  const metaInspectBox = document.getElementById('metaInspectBox');
+  const metaKindBadge = document.getElementById('metaKindBadge');
+
+  function pickCleanMode(val, btn) {
+    document.getElementById('cleanModeField').value = val;
+    btn.parentElement.querySelectorAll('.matrix-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function hideMetaPreviews() {
+    metaImgWrap.classList.add('hidden');
+    metaDocBox.classList.add('hidden');
+    if (metaPdfFrame) metaPdfFrame.classList.add('hidden');
+    metaVideoEl.classList.add('hidden');
+    metaAudioWrap.classList.add('hidden');
+    metaVideoEl.pause();
+    metaAudioEl.pause();
+  }
+
+  function resetMetaFile() {
+    metaFileInput.value = '';
+    hideMetaPreviews();
+    metaPreviewImg.src = '';
+    metaDocBox.textContent = '';
+    if (metaPdfFrame) metaPdfFrame.removeAttribute('src');
+    metaVideoEl.removeAttribute('src'); metaVideoEl.load();
+    metaAudioEl.removeAttribute('src'); metaAudioEl.load();
+    metaDropzone.classList.remove('hidden', 'dropzone-error');
+    setMetaStatus('hidden');
+    document.getElementById('metaFileName').textContent = 'Файл не выбран';
+    document.getElementById('metaFileDims').textContent = 'Изображения, аудио, видео и документы до 100 МБ';
+    metaKindBadge.textContent = 'Тип: не определён';
+    metaInspectBox.textContent = 'Загрузите изображение, аудио, видео или документ слева — система автоматически просканирует встроенные метаданные перед очисткой.';
+  }
+
+  function detectFileKind(file) {
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (file.type.startsWith('image/') || ['png','jpg','jpeg','webp','avif','gif','tiff','bmp'].includes(ext)) return 'image';
+    if (file.type.startsWith('video/') || ['mp4','webm','mov','mkv','avi'].includes(ext)) return 'video';
+    if (file.type.startsWith('audio/') || ['mp3','wav','ogg','m4a','flac'].includes(ext)) return 'audio';
+    return 'document';
+  }
+
+  async function handleMetaFile(file) {
+    if (!file) return;
+    setMetaStatus('hidden');
+    metaDropzone.classList.remove('dropzone-error');
+    hideMetaPreviews();
+
+    const kind = detectFileKind(file);
+    const kindNames = { image: 'Изображение', audio: 'Аудио', video: 'Видео', document: 'Документ' };
+    metaKindBadge.textContent = `Тип: ${kindNames[kind]}`;
+
+    const sizeText = file.size >= 1024 * 1024
+      ? `${(file.size / (1024 * 1024)).toFixed(2)} МБ`
+      : `${(file.size / 1024).toFixed(1)} КБ`;
+    document.getElementById('metaFileName').textContent = file.name;
+    document.getElementById('metaFileDims').textContent = `${kindNames[kind]} • ${sizeText}`;
+    metaDropzone.classList.add('hidden');
+
+    const keepIccBtn = document.getElementById('keepIccBtn');
+    if (keepIccBtn) keepIccBtn.classList.toggle('hidden', kind !== 'image');
+
+    const url = URL.createObjectURL(file);
+    if (kind === 'image') {
+      metaPreviewImg.src = url;
+      metaImgWrap.classList.remove('hidden');
+    } else if (kind === 'video') {
+      metaVideoEl.src = url;
+      metaVideoEl.classList.remove('hidden');
+    } else if (kind === 'audio') {
+      metaAudioEl.src = url;
+      document.getElementById('metaAudioLabel').textContent = `Аудиофайл: ${file.name} (${sizeText})`;
+      metaAudioWrap.classList.remove('hidden');
+    } else {
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      if (ext === 'pdf') {
+        metaPdfFrame.src = url;
+        metaPdfFrame.classList.remove('hidden');
+      } else if (['docx', 'doc', 'rtf', 'odt'].includes(ext)) {
+        metaDocBox.textContent = `Документ ${file.name} (${sizeText}) загружен и готов к очистке метаданных.`;
+        metaDocBox.classList.remove('hidden');
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const txt = String(reader.result || '');
+          metaDocBox.textContent = txt.slice(0, 12000) + (txt.length > 12000 ? '\n\n... (показано начало документа)' : '');
+          metaDocBox.classList.remove('hidden');
+        };
+        reader.readAsText(file);
+      }
+    }
+
+    // Сканируем метаданные на сервере
+    metaInspectBox.innerHTML = '<div style="color:var(--accent-cyan);">Сканирование скрытых метаданных...</div>';
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/metadata/inspect', { method: 'POST', body: fd });
+      if (res.ok) {
+        const data = await res.json();
+        metaInspectBox.innerHTML = data.items.map(it =>
+          `<div>${it.label}: <b>${it.value}</b></div>`
+        ).join('');
+      } else {
+        metaInspectBox.textContent = 'Файл готов к очистке метаданных.';
+      }
+    } catch {
+      metaInspectBox.textContent = 'Файл готов к очистке метаданных.';
+    }
+  }
+
+  metaFileInput.addEventListener('change', () => handleMetaFile(metaFileInput.files[0]));
+  metaDropzone.addEventListener('dragover', e => { e.preventDefault(); metaDropzone.classList.add('dragover'); });
+  metaDropzone.addEventListener('dragleave', () => metaDropzone.classList.remove('dragover'));
+  metaDropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    metaDropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+      metaFileInput.files = e.dataTransfer.files;
+      handleMetaFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  let statusTimer = null;
+  function setMetaStatus(state, text) {
+    const banner = document.getElementById('downloadStatusBanner');
+    const spinner = document.getElementById('statusSpinner');
+    const checkIcon = document.getElementById('statusCheckIcon');
+    const errorIcon = document.getElementById('statusErrorIcon');
+    const textEl = document.getElementById('downloadStatusText');
+    const btn = document.getElementById('cleanMetaBtn');
+    if (statusTimer) clearTimeout(statusTimer);
+
+    if (state === 'hidden') {
+      banner.classList.add('hidden');
+      banner.classList.remove('status-success', 'status-error');
+      if (btn) { btn.disabled = false; btn.textContent = 'Очистить метаданные и скачать'; }
+      return;
+    }
+
+    banner.classList.remove('hidden', 'status-success', 'status-error');
+    spinner.classList.add('hidden');
+    checkIcon.classList.add('hidden');
+    errorIcon.classList.add('hidden');
+    textEl.textContent = text;
+
+    if (state === 'loading') {
+      spinner.classList.remove('hidden');
+      if (btn) { btn.disabled = true; btn.textContent = 'Очистка метаданных...'; }
+    } else if (state === 'success') {
+      banner.classList.add('status-success');
+      checkIcon.classList.remove('hidden');
+      if (btn) { btn.disabled = false; btn.textContent = 'Очистить метаданные и скачать'; }
+      statusTimer = setTimeout(() => banner.classList.add('hidden'), 5000);
+    } else if (state === 'error') {
+      banner.classList.add('status-error');
+      errorIcon.classList.remove('hidden');
+      if (btn) { btn.disabled = false; btn.textContent = 'Очистить метаданные и скачать'; }
+      statusTimer = setTimeout(() => banner.classList.add('hidden'), 5000);
+    }
+  }
+
+  document.getElementById('metadataForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = metaFileInput.files && metaFileInput.files[0];
+
+    if (!file) {
+      setMetaStatus('error', 'Вы не выбрали файл для обработки');
+      metaDropzone.classList.remove('dropzone-error');
+      void metaDropzone.offsetWidth;
+      metaDropzone.classList.add('dropzone-error');
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('cleanMode', document.getElementById('cleanModeField').value);
+
+    setMetaStatus('loading', 'Идет очистка метаданных и подготовка файла...');
+
+    try {
+      const res = await fetch('/api/metadata/clean', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json();
+        if (err.redirect) { window.location.href = err.redirect; return; }
+        setMetaStatus('error', err.error || 'Ошибка очистки метаданных');
+        return;
+      }
+
+      const rem = res.headers.get('X-Credits-Remaining');
+      const creditsEl = document.getElementById('headerCredits');
+      if (rem && rem !== 'unlimited' && creditsEl) creditsEl.textContent = rem;
+
+      const outExt = res.headers.get('X-Out-Ext') || 'bin';
+      const outNameHeader = res.headers.get('X-Out-Name');
+      const downloadName = outNameHeader
+        ? decodeURIComponent(outNameHeader)
+        : `${file.name.replace(/\.[^.]+$/, '')}-clean.${outExt}`;
+
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = downloadName;
+      a.click();
+
+      setMetaStatus('success', 'Готово! Метаданные удалены, чистый файл скачивается (и сохранён в истории).');
+    } catch {
+      setMetaStatus('error', 'Сбой соединения при очистке метаданных');
+    }
+  });
+</script>
+
+<%- include('partials/footer') %>
