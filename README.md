@@ -1,3 +1,3 @@
 # cosmoconvert
-УП "Проектирование и разработка ИС"
-admin@cosmoconvert.local / admin123
+УП "Проектирование и разработка ИС" 
+(admin@cosmoconvert.local / admin123)
