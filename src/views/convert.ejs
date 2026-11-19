@@ -48,7 +48,7 @@
 
     <div class="canvas-stage">
       <label class="dropzone-overlay" id="dropzone">
-        <input type="file" id="fileInput" name="file" accept="image/*,.pdf,.docx,.doc,.rtf,.odt,.txt,.md,.html,.htm,.csv,.json,.xml,audio/*,video/*">
+        <input type="file" id="fileInput" name="file" accept="image/png,image/jpeg,image/webp,image/avif,image/bmp,image/tiff,.png,.jpg,.jpeg,.webp,.avif,.bmp,.tiff,.pdf,.docx,.doc,.rtf,.odt,.txt,.md,.html,.htm,.csv,.json,.xml,audio/*,video/*">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="1.8" style="margin-bottom:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <div style="font-weight:700; font-size:15px; margin-bottom:6px;">Перетащите любой файл сюда или <span style="color:var(--accent-bright); text-decoration:underline;">выберите с диска</span></div>
         <div style="font-size:12px; color:var(--text-muted);" id="dropSubText">PNG, JPEG, WebP, AVIF, PDF, DOCX, DOC, RTF, TXT, MD, HTML, CSV, JSON, MP4, MP3, WAV до 40 МБ</div>
@@ -254,8 +254,8 @@
     const modeMeta = {
       image: {
         badge: 'Режим: Изображения',
-        accept: 'image/*,.png,.jpg,.jpeg,.webp,.avif,.gif,.bmp,.tiff',
-        sub: 'PNG, JPEG, WebP, AVIF, GIF, BMP, TIFF (до 40 МБ)',
+        accept: 'image/png,image/jpeg,image/webp,image/avif,image/bmp,image/tiff,.png,.jpg,.jpeg,.webp,.avif,.bmp,.tiff',
+        sub: 'PNG, JPEG, WebP, AVIF, BMP, TIFF (до 40 МБ)',
         emptyHint: 'Выберите изображение для конвертации'
       },
       document: {
@@ -329,7 +329,7 @@
 
   function detectCategoryFromFile(file) {
     const ext = (file.name.split('.').pop() || '').toLowerCase();
-    if (file.type.startsWith('image/') || ['png','jpg','jpeg','webp','avif','gif','bmp','tiff'].includes(ext)) {
+    if ((file.type.startsWith('image/') && file.type !== 'image/gif') || ['png','jpg','jpeg','webp','avif','bmp','tiff'].includes(ext)) {
       return 'image';
     }
     if (file.type.startsWith('video/') || file.type.startsWith('audio/') || ['mp4','webm','mov','mkv','avi','mp3','wav','ogg','m4a','flac'].includes(ext)) {
@@ -340,6 +340,15 @@
 
   function handleConverterFile(file) {
     if (!file) return;
+    const rawExt = (file.name.split('.').pop() || '').toLowerCase();
+    if (rawExt === 'gif' || file.type === 'image/gif') {
+      fileInput.value = '';
+      setStatus('error', 'GIF-анимации не обрабатываются в конвертере — используйте раздел «Изображения → Кадрирование GIF»');
+      dropzone.classList.remove('dropzone-error');
+      void dropzone.offsetWidth;
+      dropzone.classList.add('dropzone-error');
+      return;
+    }
     setStatus('hidden');
     dropzone.classList.remove('dropzone-error');
     hideAllPreviews();

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: cosmoconvert
+    runtime: node
+    plan: free
+    buildCommand: npm install && npx prisma generate
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production

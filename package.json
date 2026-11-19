@@ -7,7 +7,9 @@
     "start": "node server.js",
     "db:studio": "npx prisma studio",
     "db:push": "npx prisma db push",
-    "db:server": "node db-server.js"
+    "db:server": "node db-server.js",
+    "build": "prisma generate",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
@@ -15,9 +17,10 @@
     "express": "^5.3.0",
     "multer": "^2.5.0",
     "sharp": "^0.35.5",
-    "ffmpeg-static": "^5.2.0"
-  },
-  "devDependencies": {
+    "ffmpeg-static": "^5.2.0",
     "prisma": "^6.19.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

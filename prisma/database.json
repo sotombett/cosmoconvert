@@ -1,10 +1,10 @@
 {
   "server": "CosmoConvert Local DB Server (SQLite3 + Prisma ORM)",
-  "updatedAt": "2026-11-19T02:25:32.454Z",
+  "updatedAt": "2026-11-19T11:09:34.568Z",
   "databaseFile": "prisma/dev.db",
   "stats": {
     "totalUsers": 2,
-    "totalActionLogs": 4
+    "totalActionLogs": 6
   },
   "tables": {
     "User": [
@@ -77,6 +77,32 @@
         "hasFileInDb": false,
         "storedFile": null,
         "createdAt": "2026-11-19T00:03:01.575Z"
+      },
+      {
+        "id": 6,
+        "userId": 2,
+        "fileName": "cat-cat-dance.gif",
+        "targetFormat": "Конвертация → PNG (90%)",
+        "cost": 0,
+        "outputName": "cat-cat-dance.png",
+        "mimeType": "image/png",
+        "fileSize": 13896,
+        "hasFileInDb": true,
+        "storedFile": null,
+        "createdAt": "2026-11-19T07:26:34.339Z"
+      },
+      {
+        "id": 7,
+        "userId": 2,
+        "fileName": "rat-kicking-feet.gif",
+        "targetFormat": "Кадр GIF #21 → PNG",
+        "cost": 0,
+        "outputName": "rat-kicking-feet-frame-21.png",
+        "mimeType": "image/png",
+        "fileSize": 77309,
+        "hasFileInDb": true,
+        "storedFile": null,
+        "createdAt": "2026-11-19T07:31:31.136Z"
       }
     ]
   }

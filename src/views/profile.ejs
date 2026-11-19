@@ -1,24 +1,43 @@
 <%- include('partials/header') %>
 
 <div class="profile-box">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
-    <div>
-      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-        <h2 style="font-size:22px; font-family:var(--font-mono);">Аккаунт: <%= user.email %></h2>
-        <% if (isAdmin) { %>
-          <span class="role-badge-admin">ADMIN</span>
-        <% } %>
-      </div>
-      <p style="color:var(--text-muted); font-size:13px; margin-top:4px;">История операций за последние 30 дней — нажмите на название файла, чтобы скачать его повторно из базы данных</p>
+  <!-- ЦЕНТРИРОВАННАЯ ШАПКА ЛИЧНОГО КАБИНЕТА -->
+  <div class="profile-header-centered">
+    <div class="profile-account-badge">Личный кабинет</div>
+    <div class="profile-email-row">
+      <h1 class="profile-email-title"><%= user.email %></h1>
+      <% if (isAdmin) { %>
+        <span class="role-badge-admin">ADMIN</span>
+      <% } %>
     </div>
-    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+
+    <div class="profile-meta-actions">
       <% if (isAdmin) { %>
         <div class="credits-pill admin-pill">Статус: <b>Безлимит (∞)</b></div>
+        <a href="/db-admin" target="_blank" class="btn-top outline">Панель сервера БД</a>
       <% } else { %>
         <div class="credits-pill">Доступно сегодня: <b><%= user.credits %> из <%= dailyLimit %> кр.</b></div>
       <% } %>
-      <a href="http://localhost:4000" target="_blank" class="btn-top outline">Панель сервера БД (:4000)</a>
+
+      <form action="/logout" method="POST" style="display:inline;">
+        <button type="submit" class="btn-top outline">Выйти</button>
+      </form>
+
+      <% if (user.email !== 'admin@cosmoconvert.local') { %>
+        <button type="button" class="btn-top danger-outline" onclick="openDeleteAccountModal()">Удалить аккаунт</button>
+      <% } %>
     </div>
+  </div>
+
+  <div class="profile-section-divider"></div>
+
+  <!-- РАЗДЕЛ: ИСТОРИЯ ОПЕРАЦИЙ -->
+  <div class="profile-history-header">
+    <div>
+      <h2 class="profile-history-title">История операций</h2>
+      <p class="profile-history-sub">За последние 30 дней — нажмите на название файла, чтобы скачать его повторно из базы данных</p>
+    </div>
+    <div class="credits-pill" id="historyCountPill">Записей: <b><%= logs.length %></b></div>
   </div>
 
   <table>
@@ -33,9 +52,9 @@
         <th style="width:52px; text-align:right;"></th>
       </tr>
     </thead>
-    <tbody>
+    <tbody id="historyTableBody">
       <% if (logs.length === 0) { %>
-        <tr><td colspan="<%= isAdmin ? 4 : 5 %>" style="color:var(--text-muted);">У вас пока нет выполненных операций</td></tr>
+        <tr id="emptyHistoryRow"><td colspan="<%= isAdmin ? 4 : 5 %>" style="color:var(--text-muted); text-align:center; padding:24px 10px;">У вас пока нет выполненных операций</td></tr>
       <% } else { %>
         <% logs.forEach(log => { %>
           <tr id="history-row-<%= log.id %>">
@@ -62,7 +81,14 @@
             <% } %>
             <td style="font-family:var(--font-mono); font-size:12px; color:var(--text-muted);"><%= new Date(log.createdAt).toLocaleString('ru-RU') %></td>
             <td style="text-align:right;">
-              <button type="button" class="history-del-btn" onclick="deleteHistoryEntry(<%= log.id %>)" title="Удалить запись из истории">
+              <button
+                type="button"
+                class="history-del-btn"
+                data-log-id="<%= log.id %>"
+                data-log-name="<%= log.outputName %>"
+                onclick="requestDeleteHistory(this)"
+                title="Удалить запись из истории"
+              >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               </button>
             </td>
@@ -73,14 +99,131 @@
   </table>
 </div>
 
+<!-- МОДАЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ ЗАПИСИ ИЗ ИСТОРИИ -->
+<div class="custom-modal-backdrop hidden" id="deleteLogModal" onclick="if(event.target === this) closeDeleteLogModal()">
+  <div class="custom-modal">
+    <div class="custom-modal-icon danger-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+      </svg>
+    </div>
+    <h3>Удалить запись?</h3>
+    <p id="deleteLogModalText">Вы уверены, что хотите удалить эту запись и сохранённый файл из истории операций?</p>
+    <div class="modal-action-row">
+      <button type="button" class="modal-cancel-btn" style="margin-top:0;" onclick="closeDeleteLogModal()">Отмена</button>
+      <button type="button" class="modal-danger-btn" id="confirmDeleteLogBtn" onclick="confirmDeleteHistory()">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ АККАУНТА -->
+<div class="custom-modal-backdrop hidden" id="deleteAccountModal" onclick="if(event.target === this) closeDeleteAccountModal()">
+  <div class="custom-modal">
+    <div class="custom-modal-icon danger-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+    </div>
+    <h3>Удаление аккаунта</h3>
+    <p>Вы действительно хотите навсегда удалить аккаунт <b><%= user.email %></b> вместе со всей историей операций и сохранёнными файлами? Это действие нельзя отменить.</p>
+    <div id="deleteAccountError" class="error-msg hidden"></div>
+    <div class="modal-action-row">
+      <button type="button" class="modal-cancel-btn" style="margin-top:0;" onclick="closeDeleteAccountModal()">Отмена</button>
+      <button type="button" class="modal-danger-btn" id="confirmDeleteAccountBtn" onclick="confirmDeleteAccount()">Удалить аккаунт</button>
+    </div>
+  </div>
+</div>
+
 <script>
-  async function deleteHistoryEntry(id) {
-    const res = await fetch('/api/history/' + id + '/delete', { method: 'POST' });
-    if (res.ok) {
-      const row = document.getElementById('history-row-' + id);
-      if (row) row.remove();
+  const IS_ADMIN_VIEW = <%= isAdmin ? 'true' : 'false' %>;
+  let pendingLogId = null;
+
+  function requestDeleteHistory(btn) {
+    pendingLogId = Number(btn.dataset.logId);
+    const fileName = btn.dataset.logName || 'выбранный файл';
+    const textEl = document.getElementById('deleteLogModalText');
+    textEl.textContent = `Вы уверены, что хотите удалить запись «${fileName}» из истории операций? Файл больше нельзя будет скачать повторно.`;
+    document.getElementById('deleteLogModal').classList.remove('hidden');
+  }
+
+  function closeDeleteLogModal() {
+    pendingLogId = null;
+    document.getElementById('deleteLogModal').classList.add('hidden');
+  }
+
+  async function confirmDeleteHistory() {
+    if (!pendingLogId) return;
+    const btn = document.getElementById('confirmDeleteLogBtn');
+    btn.disabled = true;
+    btn.textContent = 'Удаление...';
+
+    try {
+      const res = await fetch('/api/history/' + pendingLogId + '/delete', { method: 'POST' });
+      if (res.ok) {
+        const row = document.getElementById('history-row-' + pendingLogId);
+        if (row) row.remove();
+
+        const tbody = document.getElementById('historyTableBody');
+        const remaining = tbody.querySelectorAll('tr[id^="history-row-"]').length;
+        const countPill = document.getElementById('historyCountPill');
+        if (countPill) countPill.innerHTML = `Записей: <b>${remaining}</b>`;
+
+        if (remaining === 0) {
+          const cols = IS_ADMIN_VIEW ? 4 : 5;
+          tbody.innerHTML = `<tr id="emptyHistoryRow"><td colspan="${cols}" style="color:var(--text-muted); text-align:center; padding:24px 10px;">У вас пока нет выполненных операций</td></tr>`;
+        }
+        closeDeleteLogModal();
+      }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Удалить';
     }
   }
+
+  function openDeleteAccountModal() {
+    const errEl = document.getElementById('deleteAccountError');
+    if (errEl) errEl.classList.add('hidden');
+    document.getElementById('deleteAccountModal').classList.remove('hidden');
+  }
+
+  function closeDeleteAccountModal() {
+    document.getElementById('deleteAccountModal').classList.add('hidden');
+  }
+
+  async function confirmDeleteAccount() {
+    const btn = document.getElementById('confirmDeleteAccountBtn');
+    const errEl = document.getElementById('deleteAccountError');
+    btn.disabled = true;
+    btn.textContent = 'Удаление...';
+
+    try {
+      const res = await fetch('/api/account/delete', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.error || 'Не удалось удалить аккаунт';
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Удалить аккаунт';
+        return;
+      }
+      window.location.href = data.redirect || '/home';
+    } catch {
+      errEl.textContent = 'Ошибка соединения при удалении аккаунта';
+      errEl.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Удалить аккаунт';
+    }
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeDeleteLogModal();
+      closeDeleteAccountModal();
+    }
+  });
 </script>
 
 <%- include('partials/footer') %>

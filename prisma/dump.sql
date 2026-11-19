@@ -1,5 +1,5 @@
 -- CosmoConvert — Дамп локальной базы данных SQLite
--- Сгенерировано: 19.11.2026, 07:25:32
+-- Сгенерировано: 19.11.2026, 16:09:34
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS "User" (
@@ -35,3 +35,5 @@ INSERT INTO "ActionLog" ("id", "userId", "fileName", "targetFormat", "cost", "st
 INSERT INTO "ActionLog" ("id", "userId", "fileName", "targetFormat", "cost", "storedFile", "outputName", "mimeType", "fileSize", "createdAt") VALUES (2, 1, 'pixflow-result(1).png', 'Полная очистка EXIF и GPS', 1, NULL, NULL, NULL, NULL, '2026-11-18T19:33:10.797Z');
 INSERT INTO "ActionLog" ("id", "userId", "fileName", "targetFormat", "cost", "storedFile", "outputName", "mimeType", "fileSize", "createdAt") VALUES (3, 1, 'pixflow-result(1).jpeg', 'Апскейл 4x → 5508×9792 (Lanczos3 HQ)', 3, NULL, NULL, NULL, NULL, '2026-11-18T21:49:35.646Z');
 INSERT INTO "ActionLog" ("id", "userId", "fileName", "targetFormat", "cost", "storedFile", "outputName", "mimeType", "fileSize", "createdAt") VALUES (4, 1, 'spaceeeeewebp.png', 'Обработка + Апскейл 4x → 3200×1796 (Mitchell)', 3, NULL, NULL, NULL, NULL, '2026-11-19T00:03:01.575Z');
+INSERT INTO "ActionLog" ("id", "userId", "fileName", "targetFormat", "cost", "storedFile", "outputName", "mimeType", "fileSize", "createdAt") VALUES (6, 2, 'cat-cat-dance.gif', 'Конвертация → PNG (90%)', 0, NULL, 'cat-cat-dance.png', 'image/png', 13896, '2026-11-19T07:26:34.339Z');
+INSERT INTO "ActionLog" ("id", "userId", "fileName", "targetFormat", "cost", "storedFile", "outputName", "mimeType", "fileSize", "createdAt") VALUES (7, 2, 'rat-kicking-feet.gif', 'Кадр GIF #21 → PNG', 0, NULL, 'rat-kicking-feet-frame-21.png', 'image/png', 77309, '2026-11-19T07:31:31.136Z');

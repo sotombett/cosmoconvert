@@ -10,6 +10,7 @@ import { promisify } from 'node:util';
 import { PrismaClient } from '@prisma/client';
 import {
   startLocalDbServer,
+  initSqlitePragmas,
   createDbRouter,
   syncDatabaseSnapshots,
   ensureDbSchemaAndAdmin,
@@ -49,10 +50,18 @@ const uploadMedia = multer({
   limits: { fileSize: MAX_MEDIA_MB * 1024 * 1024 }
 });
 
+const PORT = Number(process.env.PORT) || 3000;
+const IS_CLOUD = Boolean(
+  process.env.RENDER ||
+  process.env.RAILWAY_ENVIRONMENT ||
+  process.env.NODE_ENV === 'production' ||
+  process.env.PORT
+);
 const DAILY_LIMIT = 15;
 const GUEST_LIMIT = 4;
-const SECRET_KEY = 'practice-project-secret-key';
+const SECRET_KEY = process.env.SECRET_KEY || 'practice-project-secret-key';
 
+app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.set('views', path.join(process.cwd(), 'src/views'));
 
@@ -351,8 +360,18 @@ const infoPages = {
   }
 };
 
-// Встроенный маршрут локального сервера БД
-app.use('/db-admin', createDbRouter(prisma, '/db-admin'));
+// Проверка работоспособности сервера (для Render / облачного хостинга)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'CosmoConvert' });
+});
+
+// Встроенный маршрут локального сервера БД (только для администратора)
+app.use('/db-admin', (req, res, next) => {
+  if (!req.isAdmin) {
+    return res.status(403).send('Доступ к панели сервера БД разрешён только администратору');
+  }
+  next();
+}, createDbRouter(prisma, '/db-admin'));
 
 // Главная страница
 app.get(['/', '/home'], (req, res) => {
@@ -370,9 +389,13 @@ app.get('/convert', (req, res) => {
   res.render('convert', { activePage: 'convert' });
 });
 
-// 2. Изображения (ресайз + апскейл)
+// 2. Изображения (обработка + кадрирование GIF)
 app.get(['/images', '/images/process'], (req, res) => {
   res.render('editor', { tool: toolsConfig.image_process, activePage: 'image_process' });
+});
+
+app.get('/images/gif', (req, res) => {
+  res.render('gif-editor', { activePage: 'gif_crop' });
 });
 
 // 3. Аудио-студия
@@ -510,7 +533,7 @@ app.post('/login', async (req, res) => {
       return res.render('login', { error: 'Неверная почта или пароль', activePage: 'login' });
     }
 
-    res.cookie('token', createSignedValue(Number(user.id)), { httpOnly: true, path: '/' });
+    res.cookie('token', createSignedValue(Number(user.id)), { httpOnly: true, sameSite: 'lax', path: '/' });
     res.redirect('/convert');
   } catch (err) {
     console.error('[CosmoConvert Login]', err);
@@ -551,7 +574,7 @@ app.post('/register', async (req, res) => {
 
     const created = await prisma.$queryRawUnsafe('SELECT id FROM "User" WHERE email = ?;', email);
     await syncDatabaseSnapshots(prisma);
-    res.cookie('token', createSignedValue(Number(created[0].id)), { httpOnly: true, path: '/' });
+    res.cookie('token', createSignedValue(Number(created[0].id)), { httpOnly: true, sameSite: 'lax', path: '/' });
     res.redirect('/convert');
   } catch (err) {
     console.error('[CosmoConvert Register]', err);
@@ -564,17 +587,35 @@ app.post('/logout', (req, res) => {
   res.redirect('/home');
 });
 
-// Изменение гостевого лимита (сброс 4/4 или обнуление 0/4)
-app.post('/api/guest-limit', (req, res) => {
-  const { action } = req.body;
-  const newUsed = action === 'zero' ? GUEST_LIMIT : 0;
-  const remaining = Math.max(0, GUEST_LIMIT - newUsed);
-  res.cookie('guest_used', createSignedValue(newUsed), { httpOnly: true, path: '/' });
-  res.json({
-    remaining,
-    limit: GUEST_LIMIT,
-    display: `${remaining}/${GUEST_LIMIT}`
-  });
+// Удаление собственного аккаунта (вместе с историей и файлами в БД)
+app.post('/api/account/delete', async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Требуется авторизация' });
+    }
+    if (req.user.email === 'admin@cosmoconvert.local') {
+      return res.status(403).json({ error: 'Системный аккаунт администратора нельзя удалить' });
+    }
+
+    const userId = req.user.id;
+    const userLogs = await prisma.$queryRawUnsafe(
+      'SELECT storedFile FROM "ActionLog" WHERE userId = ?;',
+      userId
+    );
+    for (const l of userLogs) {
+      deleteStoredHistoryFile(l.storedFile);
+    }
+
+    await prisma.$executeRawUnsafe('DELETE FROM "ActionLog" WHERE userId = ?;', userId);
+    await prisma.$executeRawUnsafe('DELETE FROM "User" WHERE id = ?;', userId);
+    await syncDatabaseSnapshots(prisma);
+
+    res.clearCookie('token', { path: '/' });
+    res.json({ ok: true, redirect: '/home' });
+  } catch (err) {
+    console.error('[CosmoConvert Delete Account]', err);
+    res.status(500).json({ error: 'Ошибка удаления аккаунта' });
+  }
 });
 
 // Общая функция списания кредитов (для ADMIN — безлимит, cost = 0) + сохранение готового файла в БД SQLite
@@ -626,7 +667,7 @@ async function consumeCreditsAndLog(req, res, fileName, actionLabel, cost, fileP
   } else {
     const newUsed = req.guestUsed + 1;
     const rem = Math.max(0, GUEST_LIMIT - newUsed);
-    res.cookie('guest_used', createSignedValue(newUsed), { httpOnly: true, path: '/' });
+    res.cookie('guest_used', createSignedValue(newUsed), { httpOnly: true, sameSite: 'lax', path: '/' });
     return `${rem}/${GUEST_LIMIT}`;
   }
 }
@@ -755,6 +796,9 @@ app.post('/api/process', (req, res, next) => {
 
     let pipeline = sharp(req.file.buffer);
     const meta = await pipeline.metadata();
+    if (meta.format === 'gif') {
+      return res.status(400).json({ error: 'Для работы с GIF-анимациями используйте раздел «Изображения → Кадрирование GIF»' });
+    }
     const origFormat = ['jpeg', 'png', 'webp', 'avif'].includes(meta.format) ? meta.format : 'png';
     let outFormat = origFormat;
     let outQuality = 92;
@@ -854,6 +898,264 @@ app.post('/api/process', (req, res, next) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка обработки изображения' });
+  }
+});
+
+// =========================================================================
+// КАДРИРОВАНИЕ GIF (АНАЛИЗ КАДРОВ, ОБРЕЗКА С ОБОИХ КОНЦОВ, СОХРАНЕНИЕ КАДРА)
+// =========================================================================
+
+const gifPreviewCache = new Map();
+const GIF_CACHE_MAX = 6;
+const GIF_CACHE_TTL_MS = 15 * 60 * 1000;
+
+function cleanupGifCache() {
+  const now = Date.now();
+  for (const [key, entry] of gifPreviewCache.entries()) {
+    if (now - entry.createdAt > GIF_CACHE_TTL_MS) {
+      gifPreviewCache.delete(key);
+    }
+  }
+  while (gifPreviewCache.size > GIF_CACHE_MAX) {
+    const oldestKey = gifPreviewCache.keys().next().value;
+    gifPreviewCache.delete(oldestKey);
+  }
+}
+
+function normalizeGifDelays(meta, totalFrames) {
+  const raw = Array.isArray(meta.delay) ? meta.delay : [];
+  const delays = [];
+  for (let i = 0; i < totalFrames; i++) {
+    const d = Number(raw[i] ?? raw[raw.length - 1] ?? 100);
+    delays.push(Math.max(20, Number.isFinite(d) && d > 0 ? d : 100));
+  }
+  return delays;
+}
+
+// API: Анализ загруженного GIF и генерация ленты миниатюр для дорожки кадров
+app.post('/api/gif/inspect', (req, res, next) => {
+  uploadImage.single('gif')(req, res, (err) => {
+    if (err && err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: `Размер GIF превышает допустимый лимит (${MAX_IMAGE_MB} МБ)` });
+    }
+    if (err) return res.status(400).json({ error: 'Ошибка загрузки GIF-файла' });
+    next();
+  });
+}, async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Вы не выбрали GIF-файл' });
+    req.file.originalname = fixUploadedFilename(req.file.originalname);
+
+    const meta = await sharp(req.file.buffer, { pages: -1 }).metadata();
+    if (meta.format !== 'gif') {
+      return res.status(400).json({ error: 'Загруженный файл не является изображением формата GIF' });
+    }
+
+    const totalFrames = Math.max(1, Number(meta.pages) || 1);
+    const width = meta.width || 0;
+    const height = meta.pageHeight || meta.height || 0;
+    const loop = typeof meta.loop === 'number' ? meta.loop : 0;
+    const delays = normalizeGifDelays(meta, totalFrames);
+    const totalDurationMs = delays.reduce((sum, d) => sum + d, 0);
+
+    // Генерируем до 14 равномерных миниатюр для полосы предпросмотра кадров
+    const thumbSlots = Math.min(14, totalFrames);
+    const thumbs = [];
+    for (let i = 0; i < thumbSlots; i++) {
+      const idx = thumbSlots === 1
+        ? 0
+        : Math.round((i * (totalFrames - 1)) / (thumbSlots - 1));
+      const tBuf = await sharp(req.file.buffer, { page: idx, pages: 1 })
+        .resize({ height: 68, withoutEnlargement: true })
+        .jpeg({ quality: 72 })
+        .toBuffer();
+      thumbs.push({
+        index: idx,
+        dataUrl: `data:image/jpeg;base64,${tBuf.toString('base64')}`
+      });
+    }
+
+    cleanupGifCache();
+    const previewId = crypto.randomBytes(8).toString('hex');
+    gifPreviewCache.set(previewId, {
+      buffer: req.file.buffer,
+      originalName: req.file.originalname,
+      totalFrames,
+      width,
+      height,
+      delays,
+      loop,
+      frameCache: new Map(),
+      createdAt: Date.now()
+    });
+
+    res.json({
+      previewId,
+      fileName: req.file.originalname,
+      width,
+      height,
+      totalFrames,
+      delays,
+      loop,
+      totalDurationMs,
+      thumbs
+    });
+  } catch (err) {
+    console.error('[CosmoConvert GIF Inspect]', err);
+    res.status(500).json({ error: 'Не удалось проанализировать GIF-анимацию' });
+  }
+});
+
+// API: Отдача конкретного кадра GIF для живого предпросмотра на дорожке
+app.get('/api/gif/frame/:previewId/:index', async (req, res) => {
+  try {
+    const entry = gifPreviewCache.get(req.params.previewId);
+    if (!entry) return res.status(404).send('Предпросмотр GIF устарел, загрузите файл заново');
+
+    const idx = Math.max(0, Math.min(entry.totalFrames - 1, Math.round(Number(req.params.index) || 0)));
+    let frameBuf = entry.frameCache.get(idx);
+    if (!frameBuf) {
+      frameBuf = await sharp(entry.buffer, { page: idx, pages: 1 })
+        .webp({ quality: 84 })
+        .toBuffer();
+      if (entry.frameCache.size < 160) {
+        entry.frameCache.set(idx, frameBuf);
+      }
+    }
+
+    res.set('Cache-Control', 'private, max-age=600');
+    res.set('Content-Type', 'image/webp');
+    res.send(frameBuf);
+  } catch (err) {
+    console.error('[CosmoConvert GIF Frame]', err);
+    res.status(500).send('Ошибка рендера кадра');
+  }
+});
+
+// API: Обрезка GIF-анимации с обоих концов (startFrame..endFrame)
+app.post('/api/gif/trim', (req, res, next) => {
+  uploadImage.single('gif')(req, res, (err) => {
+    if (err && err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: `Размер GIF превышает допустимый лимит (${MAX_IMAGE_MB} МБ)` });
+    }
+    if (err) return res.status(400).json({ error: 'Ошибка загрузки GIF-файла' });
+    next();
+  });
+}, async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Вы не выбрали файл для обработки' });
+    req.file.originalname = fixUploadedFilename(req.file.originalname);
+
+    if (!req.user && req.guestRemaining <= 0) {
+      return res.status(403).json({
+        error: 'Гостевой лимит (4 действия) исчерпан. Зарегистрируйтесь для получения 15 кредитов в день!',
+        redirect: '/register?reason=limit'
+      });
+    }
+
+    const cost = req.isAdmin ? 0 : 1;
+    if (req.user && !req.isAdmin && req.user.credits < cost) {
+      return res.status(403).json({ error: `Недостаточно кредитов (требуется ${cost} кр., доступно ${req.user.credits} кр.)` });
+    }
+
+    const meta = await sharp(req.file.buffer, { pages: -1 }).metadata();
+    if (meta.format !== 'gif') {
+      return res.status(400).json({ error: 'Загруженный файл не является GIF-анимацией' });
+    }
+
+    const totalFrames = Math.max(1, Number(meta.pages) || 1);
+    const start = Math.max(0, Math.min(totalFrames - 1, Math.round(Number(req.body.startFrame) || 0)));
+    const endRaw = req.body.endFrame !== undefined ? Number(req.body.endFrame) : (totalFrames - 1);
+    const end = Math.max(start, Math.min(totalFrames - 1, Math.round(Number.isFinite(endRaw) ? endRaw : totalFrames - 1)));
+    const count = end - start + 1;
+
+    const allDelays = normalizeGifDelays(meta, totalFrames);
+    const slicedDelays = allDelays.slice(start, end + 1);
+    const loop = typeof meta.loop === 'number' ? meta.loop : 0;
+
+    const outputBuffer = await sharp(req.file.buffer, { page: start, pages: count })
+      .gif({ delay: slicedDelays, loop })
+      .toBuffer();
+
+    const outName = buildOutputFilename(req.file.originalname.replace(/\.[^.]+$/, '') + '-trimmed', 'gif');
+    const actionLabel = `Обрезка GIF (кадры ${start + 1}—${end + 1} из ${totalFrames})`;
+    const creditsDisplay = await consumeCreditsAndLog(req, res, req.file.originalname, actionLabel, cost, {
+      buffer: outputBuffer,
+      ext: 'gif',
+      mimeType: 'image/gif',
+      outputName: outName
+    });
+
+    res.set('X-Credits-Remaining', creditsDisplay);
+    res.set('X-Out-Ext', 'gif');
+    setSafeDownloadHeaders(res, outName, 'image/gif');
+    res.send(outputBuffer);
+  } catch (err) {
+    console.error('[CosmoConvert GIF Trim]', err);
+    res.status(500).json({ error: 'Ошибка обрезки GIF-анимации' });
+  }
+});
+
+// API: Извлечение отдельного кадра GIF в статичную картинку (PNG / JPEG / WebP)
+app.post('/api/gif/extract-frame', (req, res, next) => {
+  uploadImage.single('gif')(req, res, (err) => {
+    if (err && err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: `Размер GIF превышает допустимый лимит (${MAX_IMAGE_MB} МБ)` });
+    }
+    if (err) return res.status(400).json({ error: 'Ошибка загрузки GIF-файла' });
+    next();
+  });
+}, async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Вы не выбрали файл для обработки' });
+    req.file.originalname = fixUploadedFilename(req.file.originalname);
+
+    if (!req.user && req.guestRemaining <= 0) {
+      return res.status(403).json({
+        error: 'Гостевой лимит (4 действия) исчерпан. Зарегистрируйтесь для получения 15 кредитов в день!',
+        redirect: '/register?reason=limit'
+      });
+    }
+
+    const cost = req.isAdmin ? 0 : 1;
+    if (req.user && !req.isAdmin && req.user.credits < cost) {
+      return res.status(403).json({ error: `Недостаточно кредитов (требуется ${cost} кр., доступно ${req.user.credits} кр.)` });
+    }
+
+    const meta = await sharp(req.file.buffer, { pages: -1 }).metadata();
+    if (meta.format !== 'gif') {
+      return res.status(400).json({ error: 'Загруженный файл не является GIF-анимацией' });
+    }
+
+    const totalFrames = Math.max(1, Number(meta.pages) || 1);
+    const frameIndex = Math.max(0, Math.min(totalFrames - 1, Math.round(Number(req.body.frameIndex) || 0)));
+    const reqFmt = String(req.body.format || 'png').toLowerCase();
+    const outFormat = ['png', 'jpeg', 'webp'].includes(reqFmt) ? reqFmt : 'png';
+    const outMime = `image/${outFormat}`;
+
+    const outputBuffer = await sharp(req.file.buffer, { page: frameIndex, pages: 1 })
+      .toFormat(outFormat, { quality: 95 })
+      .toBuffer();
+
+    const outName = buildOutputFilename(
+      `${req.file.originalname.replace(/\.[^.]+$/, '')}-frame-${frameIndex + 1}`,
+      outFormat
+    );
+    const actionLabel = `Кадр GIF #${frameIndex + 1} → ${outFormat.toUpperCase()}`;
+    const creditsDisplay = await consumeCreditsAndLog(req, res, req.file.originalname, actionLabel, cost, {
+      buffer: outputBuffer,
+      ext: outFormat,
+      mimeType: outMime,
+      outputName: outName
+    });
+
+    res.set('X-Credits-Remaining', creditsDisplay);
+    res.set('X-Out-Ext', outFormat);
+    setSafeDownloadHeaders(res, outName, outMime);
+    res.send(outputBuffer);
+  } catch (err) {
+    console.error('[CosmoConvert GIF Frame Extract]', err);
+    res.status(500).json({ error: 'Ошибка сохранения кадра GIF' });
   }
 });
 
@@ -1515,13 +1817,20 @@ app.post('/api/media/log-client-action', (req, res, next) => {
   }
 });
 
-app.listen(3000, async () => {
-  console.log('[CosmoConvert Web] Основной сайт запущен:       http://localhost:3000');
+app.listen(PORT, '0.0.0.0', async () => {
+  const modeLabel = IS_CLOUD ? 'CLOUD' : 'LOCAL';
+  console.log(`[CosmoConvert Web] Сервер запущен (${modeLabel}) на порту ${PORT}${IS_CLOUD ? '' : ': http://localhost:' + PORT}`);
   const ffPath = await resolveFfmpegPath();
   if (ffPath) {
     console.log(`[CosmoConvert FFmpeg] Аудио/видео кодек активен: ${ffPath}`);
   } else {
     console.log('[CosmoConvert FFmpeg] Системный FFmpeg не найден — будет использован браузерный MP3/WAV движок (для OGG и видео-метаданных выполните: npm install)');
   }
-  await startLocalDbServer(prisma, 4000);
+
+  if (IS_CLOUD) {
+    await initSqlitePragmas(prisma);
+    console.log('[CosmoConvert DB]  Облачный режим: база SQLite инициализирована, панель БД доступна администратору по адресу /db-admin');
+  } else {
+    await startLocalDbServer(prisma, 4000);
+  }
 });

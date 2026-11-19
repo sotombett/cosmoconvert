@@ -30,11 +30,30 @@
         Конвертация
       </a>
 
-      <!-- 2. Изображения (ресайз, пропорции, симметрия и апскейл) -->
-      <a href="/images/process" class="nav-link <%= activePage === 'image_process' ? 'active' : '' %>">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
-        Изображения
-      </a>
+      <!-- 2. Изображения (выпадающий список: Обработка изображений, Кадрирование GIF) -->
+      <div class="nav-dropdown">
+        <button type="button" class="nav-link <%= (activePage === 'image_process' || activePage === 'gif_crop') ? 'active' : '' %>" onclick="toggleNavDropdown(this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          Изображения
+          <svg class="chevron-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="dropdown-menu">
+          <a href="/images/process" class="dropdown-item <%= activePage === 'image_process' ? 'active' : '' %>">
+            <span class="dropdown-item-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              Обработка изображений
+            </span>
+            <span class="dropdown-item-desc">Ресайз, пропорции, симметрия и апскейл</span>
+          </a>
+          <a href="/images/gif" class="dropdown-item <%= activePage === 'gif_crop' ? 'active' : '' %>">
+            <span class="dropdown-item-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="7" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="17" y2="20"/></svg>
+              Кадрирование GIF
+            </span>
+            <span class="dropdown-item-desc">Обрезка анимации и сохранение кадра</span>
+          </a>
+        </div>
+      </div>
 
       <!-- 3. Аудио -->
       <a href="/audio" class="nav-link <%= activePage === 'audio' ? 'active' : '' %>">
@@ -60,7 +79,7 @@
         </div>
       </div>
 
-      <!-- 5. Метаданные (отдельный раздел для изображений, аудио, видео и документов) -->
+      <!-- 5. Метаданные -->
       <a href="/metadata" class="nav-link <%= activePage === 'metadata' ? 'active' : '' %>">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         Метаданные
@@ -87,14 +106,8 @@
           <div class="credits-pill">Кредиты: <b id="headerCredits"><%= user.credits %>/<%= dailyLimit %></b></div>
         <% } %>
         <a href="/profile" class="btn-top outline <%= activePage === 'profile' ? 'active' : '' %>"><%= user.email %></a>
-        <form action="/logout" method="POST" style="display:inline;">
-          <button type="submit" class="btn-top outline">Выйти</button>
-        </form>
       <% } else { %>
-        <div class="guest-limit-wrap">
-          <div class="credits-pill" title="Пробные действия без регистрации">Гость: <b id="headerCredits"><%= guestRemaining %>/<%= guestLimit %></b></div>
-          <button type="button" class="limit-edit-btn" onclick="openGuestLimitModal()">Изменить лимит</button>
-        </div>
+        <div class="credits-pill" title="Пробные действия без регистрации">Гость: <b id="headerCredits"><%= guestRemaining %>/<%= guestLimit %></b></div>
         <a href="/login" class="btn-top outline">Войти</a>
         <a href="/register" class="btn-top">Регистрация</a>
       <% } %>
@@ -128,55 +141,5 @@
       }
     });
   </script>
-
-  <% if (!user) { %>
-    <div class="custom-modal-backdrop hidden" id="guestLimitModal" onclick="if(event.target === this) closeGuestLimitModal()">
-      <div class="custom-modal">
-        <div class="custom-modal-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
-            <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
-            <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
-          </svg>
-        </div>
-        <h3>Настройка лимита гостя</h3>
-        <p>Выберите действие для быстрой проверки работы гостевых попыток и окна ограничения:</p>
-        <div class="limit-choice-group">
-          <button type="button" class="limit-choice-btn reset" onclick="changeGuestLimit('reset')">
-            <span class="choice-title">Сброс лимита (4/4)</span>
-            <span class="choice-desc">Восстановить все пробные попытки</span>
-          </button>
-          <button type="button" class="limit-choice-btn zero" onclick="changeGuestLimit('zero')">
-            <span class="choice-title">Обнуление лимита (0/4)</span>
-            <span class="choice-desc">Исчерпать попытки для теста предупреждения</span>
-          </button>
-        </div>
-        <button type="button" class="modal-cancel-btn" onclick="closeGuestLimitModal()">Отмена</button>
-      </div>
-    </div>
-
-    <script>
-      function openGuestLimitModal() {
-        document.getElementById('guestLimitModal').classList.remove('hidden');
-      }
-      function closeGuestLimitModal() {
-        document.getElementById('guestLimitModal').classList.add('hidden');
-      }
-      async function changeGuestLimit(action) {
-        const res = await fetch('/api/guest-limit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const creditsEl = document.getElementById('headerCredits');
-          if (creditsEl) creditsEl.textContent = data.display;
-          closeGuestLimitModal();
-        }
-      }
-    </script>
-  <% } %>
 
   <main>

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
 
-const SECRET_KEY = 'practice-project-secret-key';
+const SECRET_KEY = process.env.SECRET_KEY || 'practice-project-secret-key';
 const DB_DIR = path.join(process.cwd(), 'prisma');
 const SQLITE_PATH = path.join(DB_DIR, 'dev.db');
 const JSON_DUMP_PATH = path.join(DB_DIR, 'database.json');
@@ -202,6 +202,9 @@ export async function ensureDbSchemaAndAdmin(prisma) {
   sanitizeStaleWalFiles();
   fs.mkdirSync(DB_DIR, { recursive: true });
   fs.mkdirSync(HISTORY_STORAGE_DIR, { recursive: true });
+  if (!fs.existsSync(SQLITE_PATH)) {
+    fs.writeFileSync(SQLITE_PATH, '');
+  }
 
   // Проверка целостности SQLite
   try {
@@ -666,6 +669,8 @@ export async function startLocalDbServer(prisma, port = 4000) {
 
 function renderDbDashboardHtml({ users, logs, dbSizeKb, basePath }) {
   const apiPrefix = basePath || '';
+  const backHref = basePath ? '/home' : 'http://localhost:3000/home';
+  const backLabel = basePath ? '← Вернуться на сайт' : '← Вернуться на сайт (:3000)';
   return `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -901,7 +906,7 @@ function renderDbDashboardHtml({ users, logs, dbSizeKb, basePath }) {
     </div>
     <div style="display:flex; align-items:center; gap:12px;">
       <span class="status-dot">SQLite3 • ONLINE</span>
-      <a href="http://localhost:3000/home" class="btn">← Вернуться на сайт (:3000)</a>
+      <a href="${backHref}" class="btn">${backLabel}</a>
     </div>
   </header>
 

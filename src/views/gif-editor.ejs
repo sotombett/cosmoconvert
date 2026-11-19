@@ -1,0 +1,614 @@
+<%- include('partials/header') %>
+
+<div class="page-title">
+  <h1>Кадрирование GIF</h1>
+  <p>Обрезка <b>GIF-анимации с обоих концов</b> на дорожке кадров и сохранение <b>любого отдельного кадра</b> как статичной картинки.</p>
+</div>
+
+<form id="gifEditorForm" class="editor-workspace" novalidate>
+  <!-- ЛЕВАЯ КОЛОНКА: ПРЕДПРОСМОТР И ДОРОЖКА КАДРОВ -->
+  <div class="viewport-column">
+    <div class="file-info-bar">
+      <div class="file-meta">
+        <div class="file-meta-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="7" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="17" y2="20"/></svg>
+        </div>
+        <div style="min-width:0;">
+          <div class="file-meta-name" id="gifFileName">GIF-файл не выбран</div>
+          <div class="file-meta-dims" id="gifFileDims">Загрузите анимированный GIF до 40 МБ</div>
+        </div>
+      </div>
+      <button type="button" class="icon-trash-btn" onclick="resetGifEditor()" title="Сбросить GIF">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>
+
+    <div class="view-mode-bar">
+      <div class="section-tag">Предпросмотр кадра</div>
+      <span id="gifHeaderMeta" style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted);">Ожидание файла...</span>
+    </div>
+
+    <div class="canvas-stage">
+      <label class="dropzone-overlay" id="gifDropzone">
+        <input type="file" id="gifFileInput" name="gif" accept="image/gif,.gif">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="1.8" style="margin-bottom:12px;"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="7" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="17" y2="20"/></svg>
+        <div style="font-weight:700; font-size:15px; margin-bottom:6px;">Перетащите GIF сюда или <span style="color:var(--accent-bright); text-decoration:underline;">выберите с диска</span></div>
+        <div style="font-size:12px; color:var(--text-muted);">Поддерживаются анимированные GIF до 40 МБ</div>
+      </label>
+
+      <div class="gif-stage-preview hidden" id="gifStagePreview">
+        <div class="gif-frame-viewer">
+          <img id="gifCurrentFrameImg" src="" alt="Текущий кадр GIF" draggable="false">
+          <div class="gif-frame-badge" id="gifFrameBadge">Кадр 1 / 1</div>
+        </div>
+
+        <div class="gif-transport-bar">
+          <button type="button" class="mini-mode-btn" onclick="stepGifFrame(-1)">◀ -1 кадр</button>
+          <button type="button" class="mini-mode-btn active" id="gifPlayPauseBtn" onclick="toggleGifPlay()">▶ Проиграть</button>
+          <button type="button" class="mini-mode-btn" onclick="stepGifFrame(1)">+1 кадр ▶</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ДОРОЖКА КАДРОВ (ОБРЕЗКА С ОБОИХ КОНЦОВ + ПОЛЗУНОК ВЫБОРА КАДРА) -->
+    <div class="gif-timeline-card hidden" id="gifTimelineCard">
+      <div class="waveform-header" style="margin-bottom:0;">
+        <span>Дорожка кадров (края — обрезка, синий ползунок — выбор кадра):</span>
+        <span id="gifTotalDurLabel" style="color:var(--accent-cyan);">0.00 с</span>
+      </div>
+
+      <div class="gif-timeline-track" id="gifTimelineTrack">
+        <div class="gif-filmstrip" id="gifFilmstrip"></div>
+        <div class="trim-mask" id="gifMaskL" style="left:0; width:0;"></div>
+        <div class="trim-mask" id="gifMaskR" style="right:0; width:0;"></div>
+        <div class="gif-trim-window" id="gifTrimWindow" style="left:0; right:0;"></div>
+        <div class="gif-playhead" id="gifPlayhead" style="left:0;" title="Перетащите для выбора отдельного кадра"></div>
+        <div class="trim-handle" id="gifHandleL" style="left:0;" title="Начало обрезки GIF"></div>
+        <div class="trim-handle" id="gifHandleR" style="left:calc(100% - 3px);" title="Конец обрезки GIF"></div>
+      </div>
+
+      <div class="waveform-footer" style="margin-top:0;">
+        <span id="gifTrimSummaryLine">Обрезка: кадры 1 — 1</span>
+        <span id="gifCurSummaryLine">Текущий кадр: #1 (0.00 с)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ПРАВАЯ КОЛОНКА: РЕЖИМЫ И НАСТРОЙКИ -->
+  <div class="inspector-column">
+    <% if (isAdmin) { %>
+      <div class="advanced-toggle-box admin-cost-box">
+        <span>Режим администратора</span>
+        <span>∞ (Безлимит)</span>
+      </div>
+    <% } else { %>
+      <div class="advanced-toggle-box">
+        <span>Стоимость операции</span>
+        <span>1 кр.</span>
+      </div>
+    <% } %>
+
+    <div id="gifLockHint" class="params-lock-hint">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <span>Загрузите GIF-анимацию слева, чтобы разблокировать параметры</span>
+    </div>
+
+    <div id="gifParamsWrap" class="params-locked-area is-locked">
+      <div class="section-tag">Режим работы с GIF</div>
+      <input type="hidden" id="gifModeField" value="trim">
+
+      <div class="control-group">
+        <div class="control-header"><span>Выберите действие</span></div>
+        <div class="btn-matrix-2">
+          <button type="button" class="matrix-btn active" id="modeTrimBtn" onclick="switchGifMode('trim', this)">Обрезать GIF</button>
+          <button type="button" class="matrix-btn" id="modeFrameBtn" onclick="switchGifMode('frame', this)">Сохранить кадр</button>
+        </div>
+      </div>
+
+      <!-- ПАНЕЛЬ 1: ОБРЕЗКА GIF С ОБОИХ КОНЦОВ -->
+      <div id="gifModeTrimPanel" style="display:flex; flex-direction:column; gap:14px;">
+        <div class="control-group">
+          <div class="control-header"><span>Границы обрезки (кадры)</span></div>
+          <div class="size-inputs-grid">
+            <div class="input-box">
+              <label>С кадра</label>
+              <input type="number" id="startFrameInput" value="1" min="1" max="1" oninput="onTrimInputChange()">
+            </div>
+            <div class="input-box">
+              <label>По кадр</label>
+              <input type="number" id="endFrameInput" value="1" min="1" max="1" oninput="onTrimInputChange()">
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="matrix-btn compact reset-preset-btn" onclick="resetGifTrimBounds()">Сбросить границы обрезки</button>
+
+        <div class="upscale-info-box" id="gifTrimInfoBox">
+          Перетащите левый и правый маркеры на дорожке, чтобы обрезать начало и конец GIF-анимации.
+        </div>
+      </div>
+
+      <!-- ПАНЕЛЬ 2: СОХРАНЕНИЕ ОТДЕЛЬНОГО КАДРА -->
+      <div id="gifModeFramePanel" class="hidden" style="display:flex; flex-direction:column; gap:14px;">
+        <div class="control-group">
+          <div class="control-header"><span>Выбранный кадр на дорожке</span></div>
+          <div class="size-inputs-grid" style="grid-template-columns: 1fr auto auto; align-items:end;">
+            <div class="input-box">
+              <label>Номер кадра</label>
+              <input type="number" id="selectedFrameInput" value="1" min="1" max="1" oninput="onSelectedFrameInput()">
+            </div>
+            <button type="button" class="matrix-btn compact" style="height:37px; padding:0 12px;" onclick="stepGifFrame(-1)">−1</button>
+            <button type="button" class="matrix-btn compact" style="height:37px; padding:0 12px;" onclick="stepGifFrame(1)">+1</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="control-header"><span>Формат сохраняемой картинки</span></div>
+          <input type="hidden" id="frameOutFormatField" value="png">
+          <div class="btn-matrix-3">
+            <button type="button" class="matrix-btn active" onclick="pickFrameFormat('png', this)">PNG</button>
+            <button type="button" class="matrix-btn" onclick="pickFrameFormat('jpeg', this)">JPEG</button>
+            <button type="button" class="matrix-btn" onclick="pickFrameFormat('webp', this)">WebP</button>
+          </div>
+        </div>
+
+        <div class="upscale-info-box" id="gifFrameInfoBox">
+          Передвигайте синий ползунок на дорожке или кликайте по ней, чтобы точно выбрать нужный кадр для сохранения.
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="generate-btn" id="gifSubmitBtn" style="margin-top:auto;">Обрезать и скачать GIF</button>
+  </div>
+</form>
+
+<!-- ПЛАШКА СТАТУСА ПОД ОКНОМ -->
+<div id="downloadStatusBanner" class="download-status-banner hidden">
+  <div class="status-spinner hidden" id="statusSpinner"></div>
+  <svg id="statusCheckIcon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+  <svg id="statusErrorIcon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span id="downloadStatusText">Обработка GIF...</span>
+</div>
+
+<script>
+  const gifFileInput = document.getElementById('gifFileInput');
+  const gifDropzone = document.getElementById('gifDropzone');
+  const gifStagePreview = document.getElementById('gifStagePreview');
+  const gifCurrentFrameImg = document.getElementById('gifCurrentFrameImg');
+  const gifFrameBadge = document.getElementById('gifFrameBadge');
+  const gifTimelineCard = document.getElementById('gifTimelineCard');
+  const gifTimelineTrack = document.getElementById('gifTimelineTrack');
+  const gifFilmstrip = document.getElementById('gifFilmstrip');
+  const gifParamsWrap = document.getElementById('gifParamsWrap');
+  const gifLockHint = document.getElementById('gifLockHint');
+  const gifSubmitBtn = document.getElementById('gifSubmitBtn');
+
+  let gifFile = null;
+  let gifMeta = null; // { previewId, width, height, totalFrames, delays, cumTimes }
+  let startIdx = 0;   // 0-based
+  let endIdx = 0;     // 0-based
+  let currentIdx = 0; // 0-based
+  let isPlayingGif = false;
+  let playTimer = null;
+
+  function setGifControlsLocked(locked) {
+    gifParamsWrap.classList.toggle('is-locked', locked);
+    gifParamsWrap.querySelectorAll('button, input').forEach(el => {
+      if (el.type !== 'hidden') el.disabled = locked;
+    });
+    gifLockHint.classList.toggle('hidden', !locked);
+  }
+  setGifControlsLocked(true);
+
+  function switchGifMode(mode, btn) {
+    if (!gifMeta) return;
+    document.getElementById('gifModeField').value = mode;
+    btn.parentElement.querySelectorAll('.matrix-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    document.getElementById('gifModeTrimPanel').classList.toggle('hidden', mode !== 'trim');
+    document.getElementById('gifModeFramePanel').classList.toggle('hidden', mode !== 'frame');
+    gifSubmitBtn.textContent = mode === 'trim' ? 'Обрезать и скачать GIF' : 'Сохранить кадр как картинку';
+  }
+
+  function pickFrameFormat(fmt, btn) {
+    if (!gifMeta) return;
+    document.getElementById('frameOutFormatField').value = fmt;
+    btn.parentElement.querySelectorAll('.matrix-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateGifInfoBoxes();
+  }
+
+  function frameTimeSec(idx) {
+    if (!gifMeta || !gifMeta.cumTimes) return 0;
+    return (gifMeta.cumTimes[idx] || 0) / 1000;
+  }
+
+  function rangeDurationSec(a, b) {
+    if (!gifMeta) return 0;
+    let sum = 0;
+    for (let i = a; i <= b; i++) sum += (gifMeta.delays[i] || 100);
+    return sum / 1000;
+  }
+
+  function showFrame(idx) {
+    if (!gifMeta) return;
+    currentIdx = Math.max(0, Math.min(gifMeta.totalFrames - 1, idx));
+    gifCurrentFrameImg.src = `/api/gif/frame/${gifMeta.previewId}/${currentIdx}`;
+    const tSec = frameTimeSec(currentIdx).toFixed(2);
+    gifFrameBadge.textContent = `Кадр ${currentIdx + 1} / ${gifMeta.totalFrames} • ${tSec} с`;
+    document.getElementById('selectedFrameInput').value = currentIdx + 1;
+    updateTimelineUI();
+  }
+
+  function stepGifFrame(delta) {
+    if (!gifMeta) return;
+    stopGifPlayback();
+    showFrame(currentIdx + delta);
+  }
+
+  function stopGifPlayback() {
+    isPlayingGif = false;
+    if (playTimer) {
+      clearTimeout(playTimer);
+      playTimer = null;
+    }
+    const btn = document.getElementById('gifPlayPauseBtn');
+    if (btn) btn.textContent = '▶ Проиграть';
+  }
+
+  function toggleGifPlay() {
+    if (!gifMeta || gifMeta.totalFrames <= 1) return;
+    if (isPlayingGif) {
+      stopGifPlayback();
+      return;
+    }
+    isPlayingGif = true;
+    document.getElementById('gifPlayPauseBtn').textContent = '❚❚ Пауза';
+    if (currentIdx < startIdx || currentIdx >= endIdx) {
+      showFrame(startIdx);
+    }
+
+    function tick() {
+      if (!isPlayingGif || !gifMeta) return;
+      const delay = Math.max(25, gifMeta.delays[currentIdx] || 100);
+      playTimer = setTimeout(() => {
+        if (!isPlayingGif || !gifMeta) return;
+        const next = currentIdx + 1 > endIdx ? startIdx : currentIdx + 1;
+        showFrame(next);
+        tick();
+      }, delay);
+    }
+    tick();
+  }
+
+  function idxToPct(idx) {
+    if (!gifMeta || gifMeta.totalFrames <= 1) return 0;
+    return (idx / (gifMeta.totalFrames - 1)) * 100;
+  }
+
+  function updateTimelineUI() {
+    if (!gifMeta) return;
+    const lPct = idxToPct(startIdx);
+    const rPct = idxToPct(endIdx);
+    const pPct = idxToPct(currentIdx);
+
+    document.getElementById('gifMaskL').style.width = `${lPct}%`;
+    document.getElementById('gifMaskR').style.width = `${100 - rPct}%`;
+    document.getElementById('gifTrimWindow').style.left = `${lPct}%`;
+    document.getElementById('gifTrimWindow').style.right = `${100 - rPct}%`;
+    document.getElementById('gifHandleL').style.left = `${lPct}%`;
+    document.getElementById('gifHandleR').style.left = `calc(${rPct}% - 3px)`;
+    document.getElementById('gifPlayhead').style.left = `${pPct}%`;
+
+    document.getElementById('startFrameInput').value = startIdx + 1;
+    document.getElementById('endFrameInput').value = endIdx + 1;
+
+    const trimDur = rangeDurationSec(startIdx, endIdx).toFixed(2);
+    const curSec = frameTimeSec(currentIdx).toFixed(2);
+    document.getElementById('gifTrimSummaryLine').textContent = `Обрезка: кадры ${startIdx + 1} — ${endIdx + 1} (${trimDur} с)`;
+    document.getElementById('gifCurSummaryLine').textContent = `Текущий кадр: #${currentIdx + 1} (${curSec} с)`;
+
+    updateGifInfoBoxes();
+  }
+
+  function updateGifInfoBoxes() {
+    if (!gifMeta) return;
+    const kept = endIdx - startIdx + 1;
+    const trimDur = rangeDurationSec(startIdx, endIdx).toFixed(2);
+    const fullDur = rangeDurationSec(0, gifMeta.totalFrames - 1).toFixed(2);
+
+    document.getElementById('gifTrimInfoBox').innerHTML = `
+      <div>Исходная анимация: <b>${gifMeta.totalFrames} кадр. (${fullDur} с)</b></div>
+      <div>После обрезки: <b style="color:var(--accent-cyan);">${kept} кадр. (${trimDur} с)</b></div>
+      <div>Разрешение: <b>${gifMeta.width} × ${gifMeta.height} px</b></div>
+    `;
+
+    const fmt = (document.getElementById('frameOutFormatField').value || 'png').toUpperCase();
+    document.getElementById('gifFrameInfoBox').innerHTML = `
+      <div>Выбранный кадр: <b style="color:var(--accent-cyan);">#${currentIdx + 1} из ${gifMeta.totalFrames}</b></div>
+      <div>Отметка времени: <b>${frameTimeSec(currentIdx).toFixed(2)} с</b></div>
+      <div>Выходной файл: <b>${gifMeta.width} × ${gifMeta.height} px (${fmt})</b></div>
+    `;
+  }
+
+  function onTrimInputChange() {
+    if (!gifMeta) return;
+    stopGifPlayback();
+    let s = Math.max(1, Math.min(gifMeta.totalFrames, Number(document.getElementById('startFrameInput').value) || 1)) - 1;
+    let e = Math.max(1, Math.min(gifMeta.totalFrames, Number(document.getElementById('endFrameInput').value) || gifMeta.totalFrames)) - 1;
+    if (s > e) e = s;
+    startIdx = s;
+    endIdx = e;
+    if (currentIdx < startIdx) showFrame(startIdx);
+    else if (currentIdx > endIdx) showFrame(endIdx);
+    else updateTimelineUI();
+  }
+
+  function onSelectedFrameInput() {
+    if (!gifMeta) return;
+    stopGifPlayback();
+    const val = Math.max(1, Math.min(gifMeta.totalFrames, Number(document.getElementById('selectedFrameInput').value) || 1));
+    showFrame(val - 1);
+  }
+
+  function resetGifTrimBounds() {
+    if (!gifMeta) return;
+    startIdx = 0;
+    endIdx = gifMeta.totalFrames - 1;
+    updateTimelineUI();
+  }
+
+  // Перетаскивание левого/правого маркера обрезки и ползунка кадра на дорожке
+  let activeDrag = null;
+
+  document.getElementById('gifHandleL').addEventListener('mousedown', (e) => {
+    e.stopPropagation();
+    stopGifPlayback();
+    activeDrag = 'left';
+  });
+  document.getElementById('gifHandleR').addEventListener('mousedown', (e) => {
+    e.stopPropagation();
+    stopGifPlayback();
+    activeDrag = 'right';
+  });
+  document.getElementById('gifPlayhead').addEventListener('mousedown', (e) => {
+    e.stopPropagation();
+    stopGifPlayback();
+    activeDrag = 'playhead';
+  });
+  gifTimelineTrack.addEventListener('mousedown', (e) => {
+    if (!gifMeta) return;
+    stopGifPlayback();
+    activeDrag = 'playhead';
+    applyTrackPointer(e.clientX);
+  });
+
+  function applyTrackPointer(clientX) {
+    if (!gifMeta) return;
+    const rect = gifTimelineTrack.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
+    const idx = Math.round(ratio * (gifMeta.totalFrames - 1));
+
+    if (activeDrag === 'left') {
+      startIdx = Math.min(idx, endIdx);
+      showFrame(startIdx);
+    } else if (activeDrag === 'right') {
+      endIdx = Math.max(idx, startIdx);
+      showFrame(endIdx);
+    } else if (activeDrag === 'playhead') {
+      showFrame(idx);
+    }
+  }
+
+  window.addEventListener('mousemove', (e) => {
+    if (!activeDrag || !gifMeta) return;
+    applyTrackPointer(e.clientX);
+  });
+
+  window.addEventListener('mouseup', () => {
+    activeDrag = null;
+  });
+
+  async function handleGifFile(file) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.gif') && file.type !== 'image/gif') {
+      setGifStatus('error', 'Пожалуйста, выберите анимированный файл формата GIF');
+      return;
+    }
+
+    stopGifPlayback();
+    setGifStatus('loading', 'Анализ кадров GIF и построение дорожки...');
+    gifDropzone.classList.remove('dropzone-error');
+
+    const fd = new FormData();
+    fd.append('gif', file);
+
+    try {
+      const res = await fetch('/api/gif/inspect', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json();
+        setGifStatus('error', err.error || 'Не удалось прочитать GIF-файл');
+        return;
+      }
+
+      const data = await res.json();
+      gifFile = file;
+
+      const cumTimes = [];
+      let acc = 0;
+      for (let i = 0; i < data.delays.length; i++) {
+        cumTimes.push(acc);
+        acc += data.delays[i];
+      }
+
+      gifMeta = { ...data, cumTimes };
+      startIdx = 0;
+      endIdx = data.totalFrames - 1;
+      currentIdx = 0;
+
+      const sizeText = file.size >= 1024 * 1024
+        ? `${(file.size / (1024 * 1024)).toFixed(2)} МБ`
+        : `${(file.size / 1024).toFixed(1)} КБ`;
+      const durText = (data.totalDurationMs / 1000).toFixed(2);
+
+      document.getElementById('gifFileName').textContent = file.name;
+      document.getElementById('gifFileDims').textContent = `${data.width} × ${data.height} px • ${data.totalFrames} кадр. • ${durText} с • ${sizeText}`;
+      document.getElementById('gifHeaderMeta').textContent = `${data.totalFrames} кадров • ${durText} с`;
+      document.getElementById('gifTotalDurLabel').textContent = `${durText} с`;
+
+      document.getElementById('startFrameInput').max = data.totalFrames;
+      document.getElementById('endFrameInput').max = data.totalFrames;
+      document.getElementById('selectedFrameInput').max = data.totalFrames;
+
+      // Строим ленту миниатюр кадров
+      gifFilmstrip.innerHTML = data.thumbs
+        .map(t => `<img src="${t.dataUrl}" alt="Кадр ${t.index + 1}" draggable="false">`)
+        .join('');
+
+      gifDropzone.classList.add('hidden');
+      gifStagePreview.classList.remove('hidden');
+      gifTimelineCard.classList.remove('hidden');
+      setGifControlsLocked(false);
+
+      showFrame(0);
+      setGifStatus('hidden');
+    } catch {
+      setGifStatus('error', 'Сбой соединения при анализе GIF-файла');
+    }
+  }
+
+  function resetGifEditor() {
+    stopGifPlayback();
+    gifFile = null;
+    gifMeta = null;
+    gifFileInput.value = '';
+    gifCurrentFrameImg.src = '';
+    gifFilmstrip.innerHTML = '';
+    gifStagePreview.classList.add('hidden');
+    gifTimelineCard.classList.add('hidden');
+    gifDropzone.classList.remove('hidden', 'dropzone-error');
+    document.getElementById('gifFileName').textContent = 'GIF-файл не выбран';
+    document.getElementById('gifFileDims').textContent = 'Загрузите анимированный GIF до 40 МБ';
+    document.getElementById('gifHeaderMeta').textContent = 'Ожидание файла...';
+    setGifControlsLocked(true);
+    setGifStatus('hidden');
+  }
+
+  gifFileInput.addEventListener('change', () => handleGifFile(gifFileInput.files[0]));
+  gifDropzone.addEventListener('dragover', e => { e.preventDefault(); gifDropzone.classList.add('dragover'); });
+  gifDropzone.addEventListener('dragleave', () => gifDropzone.classList.remove('dragover'));
+  gifDropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    gifDropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+      gifFileInput.files = e.dataTransfer.files;
+      handleGifFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  let statusTimer = null;
+  function setGifStatus(state, text = '') {
+    const banner = document.getElementById('downloadStatusBanner');
+    const spinner = document.getElementById('statusSpinner');
+    const checkIcon = document.getElementById('statusCheckIcon');
+    const errorIcon = document.getElementById('statusErrorIcon');
+    const textEl = document.getElementById('downloadStatusText');
+    if (statusTimer) clearTimeout(statusTimer);
+
+    const mode = document.getElementById('gifModeField').value;
+    const defaultBtnLabel = mode === 'trim' ? 'Обрезать и скачать GIF' : 'Сохранить кадр как картинку';
+
+    if (state === 'hidden') {
+      banner.classList.add('hidden');
+      banner.classList.remove('status-success', 'status-error');
+      gifSubmitBtn.disabled = false;
+      gifSubmitBtn.textContent = defaultBtnLabel;
+      return;
+    }
+
+    banner.classList.remove('hidden', 'status-success', 'status-error');
+    spinner.classList.add('hidden');
+    checkIcon.classList.add('hidden');
+    errorIcon.classList.add('hidden');
+    textEl.textContent = text;
+
+    if (state === 'loading') {
+      spinner.classList.remove('hidden');
+      gifSubmitBtn.disabled = true;
+      gifSubmitBtn.textContent = 'Обработка...';
+    } else if (state === 'success') {
+      banner.classList.add('status-success');
+      checkIcon.classList.remove('hidden');
+      gifSubmitBtn.disabled = false;
+      gifSubmitBtn.textContent = defaultBtnLabel;
+      statusTimer = setTimeout(() => banner.classList.add('hidden'), 5000);
+    } else if (state === 'error') {
+      banner.classList.add('status-error');
+      errorIcon.classList.remove('hidden');
+      gifSubmitBtn.disabled = false;
+      gifSubmitBtn.textContent = defaultBtnLabel;
+      statusTimer = setTimeout(() => banner.classList.add('hidden'), 4500);
+    }
+  }
+
+  document.getElementById('gifEditorForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!gifFile || !gifMeta) {
+      setGifStatus('error', 'Вы не выбрали файл для обработки');
+      gifDropzone.classList.remove('dropzone-error');
+      void gifDropzone.offsetWidth;
+      gifDropzone.classList.add('dropzone-error');
+      return;
+    }
+
+    const mode = document.getElementById('gifModeField').value;
+    const baseName = gifFile.name.replace(/\.[^.]+$/, '') || 'cosmoconvert-gif';
+    const fd = new FormData();
+    fd.append('gif', gifFile);
+
+    let endpoint = '/api/gif/trim';
+    let downloadName = `${baseName}-trimmed.gif`;
+
+    if (mode === 'trim') {
+      fd.append('startFrame', String(startIdx));
+      fd.append('endFrame', String(endIdx));
+      setGifStatus('loading', `Обрезка GIF (кадры ${startIdx + 1}—${endIdx + 1}) и сборка файла...`);
+    } else {
+      const fmt = document.getElementById('frameOutFormatField').value || 'png';
+      endpoint = '/api/gif/extract-frame';
+      downloadName = `${baseName}-frame-${currentIdx + 1}.${fmt}`;
+      fd.append('frameIndex', String(currentIdx));
+      fd.append('format', fmt);
+      setGifStatus('loading', `Извлечение кадра #${currentIdx + 1} в ${fmt.toUpperCase()}...`);
+    }
+
+    try {
+      const res = await fetch(endpoint, { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json();
+        if (err.redirect) { window.location.href = err.redirect; return; }
+        setGifStatus('error', err.error || 'Ошибка обработки GIF');
+        return;
+      }
+
+      const rem = res.headers.get('X-Credits-Remaining');
+      const creditsEl = document.getElementById('headerCredits');
+      if (rem && rem !== 'unlimited' && creditsEl) creditsEl.textContent = rem;
+
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = downloadName;
+      a.click();
+
+      setGifStatus('success', mode === 'trim'
+        ? 'Готово! Обрезанный GIF скачивается в браузере.'
+        : `Готово! Кадр #${currentIdx + 1} сохранён и скачивается.`);
+    } catch {
+      setGifStatus('error', 'Сбой соединения при обработке GIF');
+    }
+  });
+</script>
+
+<%- include('partials/footer') %>

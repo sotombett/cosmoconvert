@@ -2,12 +2,12 @@
 
 <div class="page-title">
   <h1>Аудио-студия</h1>
-  <p>Изменение <b>тональности (Pitch)</b>, <b>скорости воспроизведения</b>, <b>усиления громкости</b> и точная обрезка трека по 3-полосной волновой форме.</p>
+  <p>Изменение <b>тональности</b>, <b>скорости воспроизведения</b>, <b>громкости</b> и точная обрезка трека по 3-полосной волновой форме.</p>
 </div>
 
-<div class="audio-studio-grid">
-  <!-- ЛЕВАЯ ОСНОВНАЯ ПАНЕЛЬ -->
-  <div class="studio-panel">
+<div class="editor-workspace">
+  <!-- ЛЕВАЯ КОЛОНКА: АУДИО, ВОЛНОВАЯ ФОРМА, ПЛЕЕР И РЕГУЛЯТОРЫ -->
+  <div class="viewport-column">
     <div class="file-info-bar">
       <div class="file-meta">
         <div class="file-meta-icon">
@@ -24,14 +24,14 @@
     </div>
 
     <!-- ЗОНА ЗАГРУЗКИ (СКРЫВАЕТСЯ ПОСЛЕ ВЫБОРА ТРЕКА) -->
-    <label class="dropzone-overlay" id="audioDropzone" style="min-height:260px;">
+    <label class="dropzone-overlay" id="audioDropzone" style="min-height:290px;">
       <input type="file" id="audioFileInput" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.webm">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="1.8" style="margin-bottom:12px;"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
       <div style="font-weight:700; font-size:15px; margin-bottom:6px;">Перетащите аудиофайл сюда или <span style="color:var(--accent-bright); text-decoration:underline;">выберите с диска</span></div>
       <div style="font-size:12px; color:var(--text-muted);">Поддерживаются MP3, WAV, OGG, M4A, FLAC (до 40 МБ)</div>
     </label>
 
-    <!-- 3-BAND WAVEFORM TIMELINE TRIMMER -->
+    <!-- 3-ПОЛОСНАЯ ВОЛНОВАЯ ФОРМА И ОБРЕЗКА -->
     <div class="waveform-card hidden" id="waveformCard">
       <div class="waveform-header">
         <span>3-полосная волновая форма и обрезка:</span>
@@ -64,7 +64,7 @@
       </div>
       <div class="player-controls-wrap">
         <div class="player-track-title" id="playerTrackTitle">—</div>
-        <div class="player-track-sub" id="playerTrackSub">PCM • 44.1 kHz</div>
+        <div class="player-track-sub" id="playerTrackSub">PCM • 44.1 кГц</div>
         <div class="player-bar-row">
           <button type="button" class="play-btn-circle" id="playPauseBtn" onclick="toggleAudioPlay()" title="Воспроизвести / Пауза">
             <svg id="iconPlay" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
@@ -74,20 +74,20 @@
           <span id="playerTimeDisplay" style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted); white-space:nowrap;">00:00 / 00:00</span>
         </div>
       </div>
-      <audio id="hiddenAudioEl" class="hidden"></audio>
+      <audio id="hiddenAudioEl" class="hidden" preload="auto"></audio>
     </div>
 
-    <!-- ПАРАМЕТРЫ ОБРАБОТКИ ЗВУКА -->
-    <div class="audio-controls-grid">
+    <!-- ПАРАМЕТРЫ ОБРАБОТКИ ЗВУКА (РАВНОМЕРНЫЕ ПРЕСЕТЫ + СБРОС ПО ЦЕНТРУ) -->
+    <div class="audio-controls-grid" style="margin-top:auto;">
       <div class="dsp-box">
         <div class="control-header">
-          <span>Тональность (Pitch)</span>
+          <span>Тональность</span>
           <span class="dsp-val" id="pitchValText">0 пт (1.00x)</span>
         </div>
         <input type="range" id="pitchSlider" class="range-slider" min="-12" max="12" step="1" value="0" oninput="updateDspParams()">
         <div class="btn-matrix-3">
           <button type="button" class="matrix-btn compact" onclick="setPitch(-2)">-2 пт</button>
-          <button type="button" class="matrix-btn compact" onclick="setPitch(0)">Сброс</button>
+          <button type="button" class="matrix-btn compact reset-preset-btn" onclick="setPitch(0)">Сброс</button>
           <button type="button" class="matrix-btn compact" onclick="setPitch(2)">+2 пт</button>
         </div>
       </div>
@@ -99,36 +99,36 @@
         </div>
         <input type="range" id="speedSlider" class="range-slider" min="50" max="200" step="5" value="100" oninput="updateDspParams()">
         <div class="btn-matrix-3">
-          <button type="button" class="matrix-btn compact" onclick="setSpeed(80)">0.8x</button>
-          <button type="button" class="matrix-btn compact" onclick="setSpeed(100)">1.0x</button>
-          <button type="button" class="matrix-btn compact" onclick="setSpeed(125)">1.25x</button>
+          <button type="button" class="matrix-btn compact" onclick="setSpeed(50)">0.5x</button>
+          <button type="button" class="matrix-btn compact reset-preset-btn" onclick="setSpeed(100)">Сброс</button>
+          <button type="button" class="matrix-btn compact" onclick="setSpeed(150)">1.5x</button>
         </div>
       </div>
 
       <div class="dsp-box">
         <div class="control-header">
-          <span>Громкость (Gain)</span>
+          <span>Громкость</span>
           <span class="dsp-val" id="volumeValText">100%</span>
         </div>
-        <input type="range" id="volumeSlider" class="range-slider" min="10" max="200" step="5" value="100" oninput="updateDspParams()">
+        <input type="range" id="volumeSlider" class="range-slider" min="0" max="200" step="5" value="100" oninput="updateDspParams()">
         <div class="btn-matrix-3">
-          <button type="button" class="matrix-btn compact" onclick="setVolume(75)">75%</button>
-          <button type="button" class="matrix-btn compact" onclick="setVolume(100)">100%</button>
+          <button type="button" class="matrix-btn compact" onclick="setVolume(50)">50%</button>
+          <button type="button" class="matrix-btn compact reset-preset-btn" onclick="setVolume(100)">Сброс</button>
           <button type="button" class="matrix-btn compact" onclick="setVolume(150)">150%</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ПРАВАЯ КОЛОНКА: RENDERER LOG И ЭКСПОРТ -->
-  <div class="studio-panel">
+  <!-- ПРАВАЯ КОЛОНКА: ЖУРНАЛ ОБРАБОТКИ И ЭКСПОРТ -->
+  <div class="inspector-column">
     <div class="renderer-log-header">
-      <span>&gt;_ RENDERER LOG</span>
+      <span>&gt;_ ЖУРНАЛ ОБРАБОТКИ</span>
       <button type="button" class="clear-log-btn" onclick="clearAudioLog()">Очистить</button>
     </div>
 
     <div class="renderer-terminal" id="rendererLog">
-      <div>&gt; CosmoConvert Audio Engine v2.0 инициализирован</div>
+      <div>&gt; Аудио-движок CosmoConvert инициализирован</div>
       <div class="log-line-info">&gt; Ожидание загрузки аудиофайла...</div>
     </div>
 
@@ -148,13 +148,13 @@
       <div class="control-header"><span>Выходной формат</span></div>
       <input type="hidden" id="audioOutFormat" value="wav">
       <div class="btn-matrix-2">
-        <button type="button" class="matrix-btn active" onclick="pickAudioFormat('wav', this)">WAV (Lossless)</button>
-        <button type="button" class="matrix-btn" onclick="pickAudioFormat('mp3', this)">MP3 (320 kbps)</button>
+        <button type="button" class="matrix-btn active" onclick="pickAudioFormat('wav', this)">WAV (Без потерь)</button>
+        <button type="button" class="matrix-btn" onclick="pickAudioFormat('mp3', this)">MP3 (320 кбит/с)</button>
       </div>
     </div>
 
     <div class="upscale-info-box" id="audioSummaryBox">
-      Загрузите аудиофайл слева для просмотра итоговой длительности и параметров рендера.
+      Загрузите аудиофайл слева для просмотра итоговой длительности и параметров обработки.
     </div>
 
     <button type="button" class="generate-btn" id="renderAudioBtn" onclick="renderAndDownloadAudio()">Обработать и скачать аудио</button>
@@ -190,6 +190,28 @@
   let isPlaying = false;
   let rafId = null;
 
+  // Web Audio граф для живого изменения громкости в реальном времени (включая усиление 100%–200%)
+  let liveAudioCtx = null;
+  let liveMediaSource = null;
+  let liveGainNode = null;
+
+  function ensureLiveGainGraph() {
+    if (!hiddenAudioEl) return;
+    if (!liveAudioCtx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      liveAudioCtx = new AudioCtx();
+      liveMediaSource = liveAudioCtx.createMediaElementSource(hiddenAudioEl);
+      liveGainNode = liveAudioCtx.createGain();
+      liveMediaSource.connect(liveGainNode);
+      liveGainNode.connect(liveAudioCtx.destination);
+      hiddenAudioEl.volume = 1;
+    }
+    if (liveAudioCtx.state === 'suspended') {
+      liveAudioCtx.resume();
+    }
+  }
+
   function appendLog(msg, cls = '') {
     const div = document.createElement('div');
     if (cls) div.className = cls;
@@ -214,9 +236,13 @@
   function setVolume(v) { document.getElementById('volumeSlider').value = v; updateDspParams(); }
 
   function getDspValues() {
-    const pitch = Number(document.getElementById('pitchSlider').value) || 0;
-    const speed = (Number(document.getElementById('speedSlider').value) || 100) / 100;
-    const volume = Number(document.getElementById('volumeSlider').value) || 100;
+    const pitchRaw = Number(document.getElementById('pitchSlider').value);
+    const speedRaw = Number(document.getElementById('speedSlider').value);
+    const volRaw = Number(document.getElementById('volumeSlider').value);
+
+    const pitch = Number.isFinite(pitchRaw) ? pitchRaw : 0;
+    const speed = (Number.isFinite(speedRaw) && speedRaw > 0 ? speedRaw : 100) / 100;
+    const volume = Number.isFinite(volRaw) ? volRaw : 100;
     const pitchMult = Math.pow(2, pitch / 12);
     const effectiveRate = Math.max(0.25, Math.min(4.0, speed * pitchMult));
     return { pitch, speed, volume, pitchMult, effectiveRate };
@@ -228,13 +254,19 @@
     document.getElementById('speedValText').textContent = `${speed.toFixed(2)}x`;
     document.getElementById('volumeValText').textContent = `${volume}%`;
 
-    // Применяем параметры прямо в живом предпрослушивании
+    // Живое применение тональности, скорости и громкости (0%–200%) прямо во время прослушивания
     if (hiddenAudioEl) {
       hiddenAudioEl.preservesPitch = false;
       hiddenAudioEl.mozPreservesPitch = false;
       hiddenAudioEl.webkitPreservesPitch = false;
       hiddenAudioEl.playbackRate = Math.max(0.25, Math.min(4.0, effectiveRate));
-      hiddenAudioEl.volume = Math.min(1, volume / 100);
+
+      if (liveGainNode && liveAudioCtx) {
+        const gainVal = Math.max(0, Math.min(2.5, volume / 100));
+        liveGainNode.gain.setTargetAtTime(gainVal, liveAudioCtx.currentTime, 0.015);
+      } else {
+        hiddenAudioEl.volume = Math.max(0, Math.min(1, volume / 100));
+      }
     }
 
     updateAudioSummary();
@@ -256,7 +288,7 @@
     box.innerHTML = `
       <div>Выбранный фрагмент: <b>${CosmoAudioEngine.formatTime(s)} → ${CosmoAudioEngine.formatTime(e)}</b></div>
       <div>Итоговая длительность: <b style="color:var(--accent-cyan);">${CosmoAudioEngine.formatTime(finalDur)}</b></div>
-      <div>Параметры: <b>Pitch ${pitch >= 0 ? '+' : ''}${pitch} пт • ${speed.toFixed(2)}x • ${volume}%</b></div>
+      <div>Параметры: <b>${pitch >= 0 ? '+' : ''}${pitch} пт • ${speed.toFixed(2)}x • ${volume}%</b></div>
     `;
   }
 
@@ -276,7 +308,6 @@
     ctx.fillStyle = '#060711';
     ctx.fillRect(0, 0, w, h);
 
-    // Фоновая вертикальная сетка
     ctx.strokeStyle = 'rgba(99, 102, 241, 0.12)';
     ctx.lineWidth = 1;
     for (let x = 0; x < w; x += 28) {
@@ -317,7 +348,6 @@
     updateAudioSummary();
   }
 
-  // Перетаскивание ручек обрезки + клик по волне для перемотки
   let draggingHandle = null;
   document.getElementById('trimHandleL').addEventListener('mousedown', (e) => { e.stopPropagation(); draggingHandle = 'left'; });
   document.getElementById('trimHandleR').addEventListener('mousedown', (e) => { e.stopPropagation(); draggingHandle = 'right'; });
@@ -361,7 +391,6 @@
     document.getElementById('playerTimeDisplay').textContent =
       `${CosmoAudioEngine.formatTime(cur)} / ${CosmoAudioEngine.formatTime(dur)}`;
 
-    // Автопауза на конце обрезки
     if (isPlaying && cur >= trimEndRatio * dur) {
       hiddenAudioEl.pause();
       hiddenAudioEl.currentTime = trimStartRatio * dur;
@@ -387,6 +416,7 @@
       hiddenAudioEl.pause();
       setPlayState(false);
     } else {
+      ensureLiveGainGraph();
       const startSec = trimStartRatio * decodedBuffer.duration;
       const endSec = trimEndRatio * decodedBuffer.duration;
       if (hiddenAudioEl.currentTime < startSec || hiddenAudioEl.currentTime >= endSec) {
@@ -431,9 +461,9 @@
       const srKhz = (decodedBuffer.sampleRate / 1000).toFixed(1);
       const chText = decodedBuffer.numberOfChannels === 1 ? 'Моно' : 'Стерео';
       document.getElementById('audioFileMeta').textContent =
-        `${sizeMb} МБ • ${srKhz} kHz • ${chText} • ${CosmoAudioEngine.formatTime(decodedBuffer.duration)}`;
+        `${sizeMb} МБ • ${srKhz} кГц • ${chText} • ${CosmoAudioEngine.formatTime(decodedBuffer.duration)}`;
       document.getElementById('playerTrackTitle').textContent = file.name.replace(/\.[^.]+$/, '');
-      document.getElementById('playerTrackSub').textContent = `${srKhz} kHz • ${chText} • Длительность ${CosmoAudioEngine.formatTime(decodedBuffer.duration)}`;
+      document.getElementById('playerTrackSub').textContent = `${srKhz} кГц • ${chText} • Длительность ${CosmoAudioEngine.formatTime(decodedBuffer.duration)}`;
 
       audioDropzone.classList.add('hidden');
       waveformCard.classList.remove('hidden');
@@ -446,7 +476,7 @@
       });
 
       appendLog(`Успешно декодировано: ${decodedBuffer.sampleRate} Гц, ${chText}, ${CosmoAudioEngine.formatTime(decodedBuffer.duration)}`, 'log-line-ok');
-      appendLog('3-полосная волновая форма (Bass / Mid / High) построена.', 'log-line-ok');
+      appendLog('3-полосная волновая форма (Бас / Средние / Высокие) построена.', 'log-line-ok');
     } catch (err) {
       appendLog('Ошибка декодирования аудиофайла!', 'log-line-err');
       setStatus('error', 'Не удалось декодировать этот аудиофайл');
@@ -465,7 +495,7 @@
     audioDropzone.classList.remove('hidden');
     document.getElementById('audioFileName').textContent = 'Аудиофайл не выбран';
     document.getElementById('audioFileMeta').textContent = 'Загрузите MP3, WAV, OGG, M4A или FLAC до 40 МБ';
-    document.getElementById('audioSummaryBox').textContent = 'Загрузите аудиофайл слева для просмотра итоговой длительности и параметров рендера.';
+    document.getElementById('audioSummaryBox').textContent = 'Загрузите аудиофайл слева для просмотра итоговой длительности и параметров обработки.';
     appendLog('Рабочая область сброшена.');
   }
 
@@ -509,7 +539,7 @@
     if (state === 'loading') {
       spinner.classList.remove('hidden');
       btn.disabled = true;
-      btn.textContent = 'Рендеринг аудио...';
+      btn.textContent = 'Обработка аудио...';
     } else if (state === 'success') {
       banner.classList.add('status-success');
       checkIcon.classList.remove('hidden');
@@ -543,11 +573,10 @@
     const baseName = currentFile.name.replace(/\.[^.]+$/, '') || 'cosmoconvert-audio';
 
     setStatus('loading', 'Идет обработка аудиопотока и сборка файла...');
-    appendLog(`Старт рендера: обрезка ${CosmoAudioEngine.formatTime(startSec)}—${CosmoAudioEngine.formatTime(endSec)}, Pitch ${pitch}, Speed ${speed}x, Gain ${volume}%`, 'log-line-info');
+    appendLog(`Старт обработки: обрезка ${CosmoAudioEngine.formatTime(startSec)}—${CosmoAudioEngine.formatTime(endSec)}, тон ${pitch}, скорость ${speed}x, громкость ${volume}%`, 'log-line-info');
 
     try {
-      // Сначала проверяем лимит и списываем кредиты через сервер (и если выбран MP3 + установлен ffmpeg — кодируем на сервере)
-      const label = `Аудио-студия (Pitch ${pitch >= 0 ? '+' : ''}${pitch}, ${speed.toFixed(2)}x, ${volume}%) → ${outFmt.toUpperCase()}`;
+      const label = `Аудио-студия (${pitch >= 0 ? '+' : ''}${pitch} пт, ${speed.toFixed(2)}x, ${volume}%) → ${outFmt.toUpperCase()}`;
 
       if (outFmt === 'mp3') {
         const fd = new FormData();
@@ -579,11 +608,11 @@
           a.href = URL.createObjectURL(blob);
           a.download = `${baseName}-edited.mp3`;
           a.click();
-          appendLog('FFmpeg экспорт в MP3 завершен успешно!', 'log-line-ok');
+          appendLog('Экспорт в MP3 завершен успешно!', 'log-line-ok');
           setStatus('success', 'Готово! Аудиофайл обработан и скачивается в браузере.');
           return;
         }
-        appendLog('FFmpeg не найден — кодирование MP3 (320 kbps) через встроенный браузерный движок...', 'log-line-info');
+        appendLog('FFmpeg не найден — кодирование MP3 (320 кбит/с) через встроенный браузерный движок...', 'log-line-info');
       }
 
       const renderedBuf = await CosmoAudioEngine.renderEditedAudioBuffer(decodedBuffer, {
@@ -599,10 +628,9 @@
         : CosmoAudioEngine.encodeWav(renderedBuf);
       const outExt = outFmt === 'mp3' ? 'mp3' : 'wav';
 
-      // Проверка кредитов, сохранение файла в историю и запись лога в БД
       const logFd = new FormData();
       logFd.append('fileName', currentFile.name);
-      logFd.append('actionLabel', `Аудио-студия (Pitch ${pitch >= 0 ? '+' : ''}${pitch}, ${speed.toFixed(2)}x, ${volume}%) → ${outExt.toUpperCase()}`);
+      logFd.append('actionLabel', `Аудио-студия (${pitch >= 0 ? '+' : ''}${pitch} пт, ${speed.toFixed(2)}x, ${volume}%) → ${outExt.toUpperCase()}`);
       logFd.append('cost', '2');
       logFd.append('outExt', outExt);
       logFd.append('outputName', `${baseName}-edited.${outExt}`);
@@ -633,8 +661,8 @@
       appendLog(`Готово! Файл ${baseName}-edited.${outExt} (${(outBlob.size / (1024 * 1024)).toFixed(2)} МБ) отправлен на скачивание.`, 'log-line-ok');
       setStatus('success', `Готово! Аудиофайл (${outExt.toUpperCase()}) обработан и скачивается в браузере.`);
     } catch (err) {
-      appendLog('Сбой рендеринга: ' + err.message, 'log-line-err');
-      setStatus('error', 'Ошибка при рендеринге аудио');
+      appendLog('Сбой обработки: ' + err.message, 'log-line-err');
+      setStatus('error', 'Ошибка при обработке аудио');
     }
   }
 </script>
