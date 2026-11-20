@@ -675,6 +675,7 @@ function renderDbDashboardHtml({ users, logs, dbSizeKb, basePath }) {
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CosmoConvert DB Server — Локальный сервер СУБД</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700;800&display=swap');
@@ -895,6 +896,14 @@ function renderDbDashboardHtml({ users, logs, dbSizeKb, basePath }) {
       border-radius: 3px;
       padding: 12px;
       overflow-x: auto;
+    }
+
+    @media (max-width: 820px) {
+      header { padding: 14px 16px; height: auto; flex-wrap: wrap; gap: 10px; }
+      .container { padding: 16px; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .panel { padding: 16px; overflow-x: auto; }
+      table { min-width: 560px; }
     }
   </style>
 </head>

@@ -1,5 +1,5 @@
 -- CosmoConvert — Дамп локальной базы данных SQLite
--- Сгенерировано: 19.11.2026, 16:09:34
+-- Сгенерировано: 20.11.2026, 12:11:23
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS "User" (
